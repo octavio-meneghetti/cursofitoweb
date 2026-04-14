@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "cursofitoweb"
+  },
+  "targets": {
+    "cursofitoweb": {
+      "hosting": {
+        "fito-app": [
+          "cursofitoweb"
+        ],
+        "fito-admin": [
+          "cursofitoweb-admin"
+        ]
+      }
+    }
+  }
+}
