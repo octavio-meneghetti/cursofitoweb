@@ -1,15 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const QuizTemplate = ({ data, onNext }) => {
-  const { character, pregunta, opciones, correctIndex, feedback, accentColor } = data;
+const QuizTemplate = ({ data, onNext, onResult }) => {
+  const { character, pregunta, opciones, correctIndex, feedback, accentColor, conceptId } = data;
   const [selected, setSelected] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
   const handleSelect = (index) => {
     if (showFeedback) return;
+    const isCorrect = index === correctIndex;
     setSelected(index);
     setShowFeedback(true);
+    
+    // Reportamos al sistema de maestría
+    if (onResult) {
+      onResult({
+        success: isCorrect,
+        conceptId: data.conceptId, // Viene de la data de la pantalla
+        metadata: {
+          selectedAnswer: opciones[index],
+          correctAnswer: opciones[correctIndex]
+        }
+      });
+    }
   };
 
   return (

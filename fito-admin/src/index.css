@@ -33,3 +33,89 @@ header p {
 
 .space-y-4 > * + * { margin-top: 1rem; }
 .group:hover .group-hover\:opacity-40 { opacity: 0.4; }
+
+/* Utilidades básicas faltantes en Admin */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; left: 0; right: 0; bottom: 0; }
+.w-full { width: 100%; }
+.h-auto { height: auto; }
+.block { display: block; }
+.overflow-hidden { overflow: hidden; }
+.pointer-events-none { pointer-events: none; }
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-50 { z-index: 50; }
+.z-100 { z-index: 100; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.transition-transform { transition-property: transform; }
+.duration-300 { transition-duration: 300ms; }
+.scale-100 { transform: scale(1); }
+.scale-125 { transform: scale(1.25); }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+.shadow-2xl { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+
+/* --- PORTAL MÍSTICO (DYNAMIC THEME) --- */
+:root {
+  --map-ring-color: #ffd700;
+  --map-ring-glow: rgba(255, 215, 0, 0.4);
+  --map-ring-size: 100px;
+  --map-ring-speed: 4s;
+  --map-ring-blur: 8px;
+  --map-marker-size: 60px;
+  --map-marker-icon-size: 32px;
+  --map-marker-bg: rgba(0, 0, 0, 0.6);
+  --map-label-font-size: 10px;
+}
+
+.portal-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--map-ring-size);
+  height: var(--map-ring-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.portal-ring-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(var(--map-ring-size) / 25) solid var(--map-ring-glow);
+  background: conic-gradient(from 0deg, 
+    transparent, 
+    var(--map-ring-color), 
+    rgba(255, 165, 0, 1), 
+    var(--map-ring-color), 
+    transparent
+  );
+  filter: blur(var(--map-ring-blur));
+  animation: rotatePortal var(--map-ring-speed) linear infinite;
+}
+
+.portal-ring-outer {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--map-ring-glow) 0%, transparent 70%);
+  animation: pulsePortal 3s ease-in-out infinite;
+}
+
+@keyframes rotatePortal {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulsePortal {
+  0%, 100% { transform: scale(0.8); opacity: 0.3; }
+  50% { transform: scale(1.3); opacity: 0.8; }
+}

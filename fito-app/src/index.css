@@ -78,3 +78,317 @@ body {
 .tracking-widest { letter-spacing: 0.1em; }
 .font-bold { font-weight: 700; }
 .italic { font-style: italic; }
+
+/* Custom Intro Video Styles */
+.intro-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.intro-video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Mobile: Pantalla Completa */
+}
+
+@media (min-width: 768px) {
+  .intro-video-element {
+    object-fit: contain; /* Desktop: Ajustado sin recortes */
+    max-width: 90%;
+    max-height: 90%;
+    box-shadow: 0 0 100px rgba(0,0,0,0.8);
+  }
+}
+
+.skip-button {
+  position: absolute;
+  bottom: 3rem;
+  right: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  z-index: 1001;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.skip-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 767px) {
+  .skip-button {
+    right: 50%;
+    transform: translateX(50%);
+  }
+}
+
+/* --- MOTOR VISUAL DEL MAPA (GAME ENGINE STYLES) --- */
+.world-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #060608;
+  color: white;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.map-viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 1.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: relative;
+  scrollbar-width: none;
+}
+
+/* Modo inmersivo para mapas de módulos y visión total */
+.viewport-immersive {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+}
+
+.map-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  background-color: #000;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 0 120px rgba(0,0,0,0.9);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 1rem;
+  margin-bottom: 3rem;
+  flex-shrink: 0;
+}
+
+.map-background {
+  width: 100%;
+  height: auto; /* Que escale su altura natural según el ancho */
+  display: block;
+  opacity: 0.9;
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.4), transparent, rgba(0,0,0,0.4));
+  pointer-events: none;
+}
+
+.map-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+}
+
+.marker-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.marker-icon-box {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  z-index: 10;
+  transition: all 0.3s;
+  filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
+  animation: floating 3s infinite ease-in-out;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.marker-label {
+  position: absolute;
+  top: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(12px);
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.marker-content:hover .marker-label {
+  opacity: 1;
+  top: 140%;
+}
+
+.marker-content:hover .marker-icon-box {
+  transform: scale(1.2);
+  filter: drop-shadow(0 10px 25px rgba(0,0,0,0.8));
+}
+
+/* HUD System */
+.hud-top {
+  padding: 2.5rem 1.5rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+  z-index: 150;
+}
+
+.hud-bottom {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+  z-index: 150;
+}
+
+.menu-dock {
+  width: 100%;
+  max-width: 380px;
+  height: 70px;
+  background: rgba(20, 20, 25, 0.85);
+  backdrop-filter: blur(25px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 10px;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+}
+
+.dock-item {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.xp-badge {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 4px 12px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xp-text {
+  color: #10b981;
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: -0.02em;
+}
+
+/* --- PORTAL MÍSTICO (DYNAMIC THEME) --- */
+:root {
+  --map-ring-color: #ffd700;
+  --map-ring-glow: rgba(255, 215, 0, 0.4);
+  --map-ring-size: 100px;
+  --map-ring-speed: 4s;
+  --map-ring-blur: 8px;
+  --map-marker-size: 60px;
+  --map-marker-icon-size: 32px;
+  --map-marker-bg: rgba(0, 0, 0, 0.6);
+  --map-label-font-size: 10px;
+}
+
+.portal-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--map-ring-size);
+  height: var(--map-ring-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.portal-ring-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(var(--map-ring-size) / 25) solid var(--map-ring-glow);
+  background: conic-gradient(from 0deg, 
+    transparent, 
+    var(--map-ring-color), 
+    rgba(255, 165, 0, 1), 
+    var(--map-ring-color), 
+    transparent
+  );
+  filter: blur(var(--map-ring-blur));
+  animation: rotatePortal var(--map-ring-speed) linear infinite;
+}
+
+.portal-ring-outer {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--map-ring-glow) 0%, transparent 70%);
+  animation: pulsePortal 3s ease-in-out infinite;
+}
+
+@keyframes rotatePortal {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulsePortal {
+  0%, 100% { transform: scale(0.8); opacity: 0.2; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.flex-center { display: flex; align-items: center; justify-content: center; }

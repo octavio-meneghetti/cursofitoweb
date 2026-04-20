@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
+import { masteryService } from '../lib/masteryService';
 import NarrativeTemplate from './templates/NarrativeTemplate';
 import QuizTemplate from './templates/QuizTemplate';
+import SwipeTemplate from './templates/SwipeTemplate';
+import FlipTemplate from './templates/FlipTemplate';
+import SliderTemplate from './templates/SliderTemplate';
+import DragMatchTemplate from './templates/DragMatchTemplate';
+import RewardTemplate from './templates/RewardTemplate';
+import JournalTemplate from './templates/JournalTemplate';
+import HotspotTemplate from './templates/HotspotTemplate';
+import OrderingTemplate from './templates/OrderingTemplate';
+import ThermoTemplate from './templates/ThermoTemplate';
+import ScratchRevealTemplate from './templates/ScratchRevealTemplate';
+import MagneticPuzzleTemplate from './templates/MagneticPuzzleTemplate';
+import IntroTemplate from './templates/IntroTemplate';
 
-const LessonEngine = ({ lesson, onExit }) => {
+const LessonEngine = ({ lesson, onExit, user }) => {
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
   const currentScreen = lesson.screens[currentScreenIndex];
 
@@ -15,14 +28,69 @@ const LessonEngine = ({ lesson, onExit }) => {
     }
   };
 
+  const handleResult = ({ success, conceptId, metadata }) => {
+    if (user && conceptId) {
+      masteryService.reportInteraction(user.uid, conceptId, success, metadata);
+    }
+  };
+
   const renderScreen = () => {
-    switch (currentScreen.template) {
+    switch (currentScreen.templateId || currentScreen.template) {
       case 'T01_NARRATIVE':
         return <NarrativeTemplate data={currentScreen.data} onNext={handleNext} />;
       case 'T02_QUIZ_SELECT':
-        return <QuizTemplate data={currentScreen.data} onNext={handleNext} />;
+        return <QuizTemplate data={currentScreen} onNext={handleNext} onResult={handleResult} />;
+      case 'T03_SWIPE_CARDS':
+        return <SwipeTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T04_FLIP_CARDS':
+        return (
+          <div className="relative w-full h-full">
+            <FlipTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
+            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-emerald-500 text-black font-bold rounded-full z-50">Siguiente &rarr;</button>
+          </div>
+        );
+      case 'T05_SLIDER':
+        return (
+          <div className="relative w-full h-full">
+            <SliderTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
+            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-emerald-500 text-black font-bold rounded-full z-50">Siguiente &rarr;</button>
+          </div>
+        );
+      case 'T06_DRAG_MATCH':
+        return (
+          <div className="relative w-full h-full">
+            <DragMatchTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
+            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-emerald-500 text-black font-bold rounded-full z-50">Siguiente &rarr;</button>
+          </div>
+        );
+      case 'T07_REWARD':
+        return (
+          <div className="relative w-full h-full">
+            <RewardTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
+            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-yellow-500 text-black font-bold rounded-full z-50">Cobrar Recompensa</button>
+          </div>
+        );
+      case 'T08_JOURNAL':
+        return (
+          <div className="relative w-full h-full">
+            <JournalTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
+            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-emerald-500 text-black font-bold rounded-full z-50">Guardar Registro</button>
+          </div>
+        );
+      case 'T09_HOTSPOTS':
+        return <HotspotTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T10_ORDERING':
+        return <OrderingTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T11_THERMO':
+        return <ThermoTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T12_SCRATCH':
+        return <ScratchRevealTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T13_MAGNETIC':
+        return <MagneticPuzzleTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+      case 'T14_INTRO':
+        return <IntroTemplate data={currentScreen.data} onNext={handleNext} />;
       default:
-        return <div>Plantilla no encontrada: {currentScreen.template}</div>;
+        return <div className="text-white p-10">Plantilla no encontrada: {currentScreen.templateId || currentScreen.template}</div>;
     }
   };
 

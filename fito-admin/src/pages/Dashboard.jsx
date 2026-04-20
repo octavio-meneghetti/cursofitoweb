@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import '@shared/theme/designSystem.css';
 
 const courses = [
@@ -9,11 +10,41 @@ const courses = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen p-10 bg-dark text-main">
-      <header className="mb-12">
-        <h1 className="text-4xl font-bold tracking-widest uppercase mb-2">Panel Maestro</h1>
-        <p className="text-dim">Gestión de lecciones y contenidos del curso</p>
+      <header className="mb-12 flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-bold tracking-widest uppercase mb-2">Panel Maestro</h1>
+          <p className="text-dim">Gestión de lecciones y contenidos del curso</p>
+        </div>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => navigate('/map-theme')}
+            className="px-6 py-3 bg-white/10 border border-white/20 text-white font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Personalizar Diseño 🎨
+          </button>
+          <button 
+            onClick={() => navigate('/map-editor')}
+            className="px-6 py-3 bg-white/10 border border-white/20 text-white font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Configurar Mundo 🗺️
+          </button>
+          <button 
+            onClick={() => navigate('/module-map')}
+            className="px-6 py-3 bg-white/10 border border-white/20 text-white font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Configurar Bloques 🧩
+          </button>
+          <button 
+            onClick={() => navigate('/student-preview')}
+            className="px-6 py-3 bg-emerald-500 text-black font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Ver App Alumno 🌿
+          </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -31,6 +62,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <span className="text-dim text-sm">{course.screens} Pantallas</span>
               <button 
+                onClick={() => navigate(`/course/${course.id}`)}
                 className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-white/10"
                 style={{ color: course.color }}
               >

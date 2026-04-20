@@ -1,24 +1,21 @@
 import React from 'react';
-import MundoMapa from './components/MundoMapa';
-import LessonEngine from './components/LessonEngine';
-import { mockLessons } from './data/mockLessons';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import StudentAppContainer from './components/StudentAppContainer';
+import VectorMapTest from './components/experimental/VectorMapTest';
 import './index.css';
 
 function App() {
-  const [view, setView] = React.useState('map'); // 'map' o 'lesson'
-
   return (
-    <div className="App">
-      {view === 'map' ? (
-        <MundoMapa onSelectZone={(zoneId) => setView('lesson')} />
-      ) : (
-        <LessonEngine 
-          lesson={mockLessons[0]} 
-          onExit={() => setView('map')} 
-        />
-      )}
-    </div>
+    <BrowserRouter>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<StudentAppContainer />} />
+          <Route path="/vector-test" element={<VectorMapTest />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 
 export default App;
+

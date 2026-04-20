@@ -8,11 +8,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, './src/shared'),
+      '@student': path.resolve(__dirname, '../fito-app/src'),
+      '@shared-lib': path.resolve(__dirname, '../shared'),
     },
+    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion'],
   },
   server: {
     fs: {
-      allow: ['..']
+      allow: ['..', '../shared']
     }
   },
   optimizeDeps: {

@@ -4,16 +4,17 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  root: path.resolve(__dirname),
   plugins: [react()],
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, './src/shared'),
+      '@shared-lib': path.resolve(__dirname, '../shared'),
     },
+    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion'],
   },
   server: {
     fs: {
-      allow: ['..']
+      allow: ['..', '../shared']
     }
   },
   optimizeDeps: {
