@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import '@shared/theme/designSystem.css';
 
 const CourseManager = () => {
@@ -10,6 +10,7 @@ const CourseManager = () => {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBlock, setSelectedBlock] = useState(1);
+  const [moduleConfig, setModuleConfig] = useState(null);
 
   const courseNames = {
     'auto': 'Autosustentabilidad',
@@ -40,7 +41,20 @@ const CourseManager = () => {
       }
     };
 
+    const fetchModuleConfig = async () => {
+      try {
+        const configRef = doc(db, 'config', `module_map_${courseId}`);
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+          setModuleConfig(configSnap.data());
+        }
+      } catch (err) {
+        console.error("Error cargando config del módulo:", err);
+      }
+    };
+
     fetchLessons();
+    fetchModuleConfig();
   }, [courseId]);
   
   const handleDeleteLesson = async (lessonId, lessonTitle) => {
@@ -105,9 +119,12 @@ const CourseManager = () => {
           <button
             key={i+1}
             onClick={() => setSelectedBlock(i+1)}
-            className={`px-8 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${selectedBlock === i+1 ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-dim border border-white/10 hover:bg-white/10'}`}
+            className={`px-8 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex flex-col items-center ${selectedBlock === i+1 ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-dim border border-white/10 hover:bg-white/10'}`}
           >
-            BLOQUE {i+1}
+            <span className="text-[10px] uppercase font-black opacity-60">Bloque {i+1}</span>
+            <span className="text-sm truncate max-w-[150px]">
+              {moduleConfig?.blocks?.[i+1]?.name || 'Sin Nombre'}
+            </span>
           </button>
         ))}
       </div>
@@ -137,8 +154,9 @@ const CourseManager = () => {
 
             return (
               <div key={week} className="space-y-4">
-                <h2 className="text-emerald-400 font-bold uppercase tracking-widest border-b border-white/10 pb-2">
-                  📁 SEMANA {week}
+                <h2 className="text-emerald-400 font-bold uppercase tracking-widest border-b border-white/10 pb-2 flex items-center gap-3">
+                  <span className="bg-emerald-500/10 px-2 py-1 rounded text-[10px]">SEMANA {week}</span>
+                  <span>{moduleConfig?.weeks?.[week] || 'Sin Nombre'}</span>
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {weekLessons.map((lesson) => (

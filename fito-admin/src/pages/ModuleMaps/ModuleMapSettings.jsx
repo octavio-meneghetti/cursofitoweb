@@ -31,12 +31,14 @@ const ModuleMapSettings = () => {
         const data = snap.data();
         setMapConfig({
           imageUrl: data.imageUrl || 'https://placehold.co/1000x1777/0a0a0f/10b981?text=Sube+Mapa+Módulo',
-          blocks: data.blocks || {}
+          blocks: data.blocks || {},
+          weeks: data.weeks || {}
         });
       } else {
         setMapConfig({
           imageUrl: 'https://placehold.co/1000x1777/0a0a0f/10b981?text=Sube+Mapa+Módulo',
-          blocks: {}
+          blocks: {},
+          weeks: {}
         });
       }
     } catch (err) {
@@ -162,6 +164,20 @@ const ModuleMapSettings = () => {
 
                 {selectedBlock === num && (
                   <div className="space-y-3 pt-3 border-t border-white/10">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[8px] text-emerald-400 uppercase font-black">Nombre del Bloque</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ej: Introducción a la Fito"
+                        className="bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                        value={block?.name || ''}
+                        onChange={(e) => setMapConfig(prev => ({
+                          ...prev,
+                          blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], name: e.target.value } }
+                        }))}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
                         <input 
                           type="text" 
@@ -265,6 +281,27 @@ const ModuleMapSettings = () => {
               </div>
             );
           })}
+
+          <div className="mt-12 space-y-4 pb-10">
+            <h2 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Nombres de las Semanas (1-6)</h2>
+            <div className="grid grid-cols-1 gap-3">
+              {[1, 2, 3, 4, 5, 6].map(weekNum => (
+                <div key={weekNum} className="flex flex-col gap-1">
+                  <label className="text-[8px] text-white/40 uppercase font-black">Semana {weekNum}</label>
+                  <input 
+                    type="text" 
+                    placeholder={`Ej: Bases de la Nutrición`}
+                    className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500/50 outline-none transition-all"
+                    value={mapConfig.weeks?.[weekNum] || ''}
+                    onChange={(e) => setMapConfig(prev => ({
+                      ...prev,
+                      weeks: { ...prev.weeks, [weekNum]: e.target.value }
+                    }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Editor Visual */}

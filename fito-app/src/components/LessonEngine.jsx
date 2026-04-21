@@ -108,9 +108,17 @@ const LessonEngine = ({ lesson, onExit, user }) => {
       {/* Indicador de Progreso */}
       <div className="fixed top-0 left-0 w-full h-1 bg-white/5 z-50">
         <div 
-          className="h-full bg-emerald-500 transition-all duration-500" 
+          className="h-full bg-emerald-500 transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
           style={{ width: `${((currentScreenIndex + 1) / lesson.screens.length) * 100}%` }}
         />
+        
+        {/* Título de la Pantalla Actual */}
+        {currentScreen.title && (
+          <div className="absolute top-4 left-6 z-50">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 block mb-1">Sección</span>
+            <span className="text-xs font-bold text-emerald-400/80 uppercase tracking-widest">{currentScreen.title}</span>
+          </div>
+        )}
       </div>
 
       {/* Botón Home / Volver al Mapa */}

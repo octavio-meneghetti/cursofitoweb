@@ -525,9 +525,16 @@ const LevelEditor = () => {
               className={`p-3 rounded-lg border cursor-pointer group transition-colors ${selectedScreenId === screen.id ? 'bg-emerald-900/40 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-dim hover:bg-white/10 hover:text-white'}`}
               onClick={() => setSelectedScreenId(screen.id)}
             >
-              <div className="flex-1 truncate mr-2">
-                <span className="text-[10px] opacity-40 mr-2">{idx + 1}</span>
-                <span className="text-sm font-bold">{TEMPLATES[screen.templateId]?.split(' ')[0]}</span>
+              <div className="flex-1 truncate mr-2 flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] opacity-40">{idx + 1}</span>
+                  <span className="text-sm font-bold truncate">{screen.title || TEMPLATES[screen.templateId]?.split(' ')[0]}</span>
+                </div>
+                {screen.title && (
+                  <span className="text-[9px] opacity-40 uppercase tracking-tighter">
+                    {TEMPLATES[screen.templateId]?.split(':')[0]}
+                  </span>
+                )}
               </div>
               
               <div className="flex items-center gap-1">
@@ -576,18 +583,30 @@ const LevelEditor = () => {
           <h2 className="text-2xl font-bold mb-8 uppercase tracking-widest">Editando Pantalla {currentScreenIndex + 1}</h2>
           
           <div className="space-y-6">
-              <label className="block">
-                <span className="text-dim text-xs uppercase font-bold mb-2 block">Tipo de Plantilla</span>
-                <select 
-                  value={currentScreen?.templateId || 'T01_NARRATIVE'} 
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold"
-                >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-emerald-400 text-[10px] uppercase font-black tracking-widest block mb-2">Nombre de esta Pantalla</span>
+                  <input 
+                    type="text" 
+                    placeholder="Ej: Introducción Cinematográfica"
+                    value={currentScreen?.title || ''} 
+                    onChange={(e) => updateCurrentScreen({ title: e.target.value })}
+                    className="w-full bg-emerald-500/5 border border-emerald-500/20 p-3 rounded-lg text-main font-bold placeholder:text-white/10"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Tipo de Plantilla</span>
+                  <select 
+                    value={currentScreen?.templateId || 'T01_NARRATIVE'} 
+                    onChange={(e) => handleTemplateChange(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold"
+                  >
                   {Object.entries(TEMPLATES).map(([key, label]) => (
                     <option key={key} value={key}>{label}</option>
                   ))}
                 </select>
-              </label>
+                </label>
+              </div>
 
               <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-2">
                 <label className="block">
