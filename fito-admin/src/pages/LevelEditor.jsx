@@ -9,6 +9,9 @@ import DragMatchTemplate from '@shared/components/templates/DragMatchTemplate';
 import RewardTemplate from '@shared/components/templates/RewardTemplate';
 import JournalTemplate from '@shared/components/templates/JournalTemplate';
 import IntroTemplate from '@shared/components/templates/IntroTemplate';
+import VideoPresentationTemplate from '@shared/components/templates/VideoPresentationTemplate';
+import StorytellingTemplate from '@shared/components/templates/StorytellingTemplate';
+import StatementTemplate from '@shared/components/templates/StatementTemplate';
 import '@shared/theme/designSystem.css';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, getDocs } from 'firebase/firestore';
@@ -28,7 +31,10 @@ const TEMPLATES = {
   T11_THERMO: 'Termodinámica: Temperatura y Extracción (Bioquímica)',
   T12_SCRATCH: 'Raspadita: Revelación Oculta (Autosustentabilidad)',
   T13_MAGNETIC: 'Magnetismo: Polaridad Sandbox (Bioquímica)',
-  T14_INTRO: 'Intro: Narración Cinematográfica (Audio + Subtítulos)'
+  T14_INTRO: 'Intro: Narración Cinematográfica (Audio + Subtítulos)',
+  T15_VIDEO: 'Presentación de Video (MP4 + Frase)',
+  T16_STORY_STEPS: 'Storytelling: Diálogos por Pasos (Multipantalla Interna)',
+  T17_STATEMENT: 'Frase Centrada (Minimalista + Animación)'
 };
 
 const AVATAR_IMAGES = [
@@ -150,7 +156,46 @@ const DEFAULT_INTRO_DATA = {
   audioUrl: '',
   subtitlesText: '[0:02] Bienvenidos al portal de sabiduría.\n[0:07] Escucha atentamente lo que el bosque tiene para decirte.',
   accentColor: '#10b981',
-  autoContinue: true
+  autoContinue: true,
+  autoChangeAvatar: true,
+  speakers: {} // { "Nombre": { avatar: "...", color: "..." } }
+};
+
+const DEFAULT_VIDEO_DATA = {
+  videoUrl: '',
+  phrase: 'Bienvenidos a esta presentación.',
+  accentColor: '#10b981',
+  textColor: '#ffffff',
+  fontSize: '24',
+  videoMaxWidth: '320',
+  borderColor: '#10b981',
+  autoContinue: false
+};
+
+const DEFAULT_STORY_DATA = {
+  accentColor: '#10b981',
+  defaultCharacter: 'El Guardián',
+  defaultImage: '/guardian.png',
+  scenes: [
+    { 
+      id: generateId(), 
+      character: 'El Guardián', 
+      image: '/guardian.png', 
+      phrases: ['Primer diálogo de esta escena...'] 
+    }
+  ]
+};
+
+const DEFAULT_STATEMENT_DATA = {
+  text: 'Escribe aquí tu frase impactante...',
+  accentColor: '#10b981',
+  animationType: 'typewriter',
+  fontSize: '2.5rem',
+  textColor: '#ffffff',
+  backgroundColor: '#060608',
+  keySoundUrl: '/tecla2.mp3',
+  volume: 0.2,
+  typingSpeed: 1
 };
 
 const LevelEditor = () => {
@@ -172,6 +217,8 @@ const LevelEditor = () => {
   const [selectedScreenId, setSelectedScreenId] = useState(screens[0].id);
   const [loading, setLoading] = useState(true);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -224,11 +271,23 @@ const LevelEditor = () => {
 
   const removeScreen = (id) => {
     if (screens.length === 1) return alert("Debe haber al menos 1 pantalla.");
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pantalla?")) return;
     const newScreens = screens.filter(s => s.id !== id);
     setScreens(newScreens);
     if (selectedScreenId === id) {
       setSelectedScreenId(newScreens[0].id);
     }
+  };
+
+  const moveScreen = (idx, direction) => {
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === screens.length - 1) return;
+
+    const newScreens = [...screens];
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    [newScreens[idx], newScreens[targetIdx]] = [newScreens[targetIdx], newScreens[idx]];
+    
+    setScreens(newScreens);
   };
 
   const currentScreenIndex = screens.findIndex(s => s.id === selectedScreenId);
@@ -262,6 +321,9 @@ const LevelEditor = () => {
     else if (newTemplateId === 'T12_SCRATCH') defaultData = { ...DEFAULT_SCRATCH_DATA };
     else if (newTemplateId === 'T13_MAGNETIC') defaultData = { ...DEFAULT_MAGNETIC_DATA };
     else if (newTemplateId === 'T14_INTRO') defaultData = { ...DEFAULT_INTRO_DATA };
+    else if (newTemplateId === 'T15_VIDEO') defaultData = { ...DEFAULT_VIDEO_DATA };
+    else if (newTemplateId === 'T16_STORY_STEPS') defaultData = { ...DEFAULT_STORY_DATA };
+    else if (newTemplateId === 'T17_STATEMENT') defaultData = { ...DEFAULT_STATEMENT_DATA };
     
     updateCurrentScreen({
       templateId: newTemplateId,
@@ -301,6 +363,46 @@ const LevelEditor = () => {
       alert("Error al subir el audio. Verifica el Storage de Firebase.");
     } finally {
       setUploadingAudio(false);
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.includes('video')) return alert("Por favor selecciona un archivo de video (MP4)");
+
+    setUploadingVideo(true);
+    try {
+      const storageRef = ref(storage, `lessons/video/${generateId()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      handleChangeData('videoUrl', url);
+      alert('¡Video subido con éxito!');
+    } catch (err) {
+      console.error("Error al subir video:", err);
+      alert("Error al subir el video.");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const storageRef = ref(storage, `custom_images/${lessonId || 'new'}/${generateId()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      handleChangeData('avatarImage', url);
+      alert("¡Imagen subida con éxito!");
+    } catch (err) {
+      console.error(err);
+      alert("Error al subir la imagen.");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -355,6 +457,12 @@ const LevelEditor = () => {
         return <JournalTemplate data={screen.data} />;
       case 'T14_INTRO':
         return <IntroTemplate data={screen.data} onNext={() => {}} isEditMode={true} />;
+      case 'T15_VIDEO':
+        return <VideoPresentationTemplate data={screen.data} onNext={() => {}} isEditMode={true} />;
+      case 'T16_STORY_STEPS':
+        return <StorytellingTemplate data={screen.data} onNext={() => {}} />;
+      case 'T17_STATEMENT':
+        return <StatementTemplate key={JSON.stringify(screen.data)} data={screen.data} onNext={() => {}} />;
       default:
         return <div className="text-dim p-10">Selecciona una plantilla válida.</div>;
     }
@@ -414,16 +522,35 @@ const LevelEditor = () => {
           {screens.map((screen, idx) => (
             <div 
               key={screen.id} 
-              className={`p-3 rounded-lg border cursor-pointer flex justify-between items-center transition-colors ${selectedScreenId === screen.id ? 'bg-emerald-900/40 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-dim hover:bg-white/10 hover:text-white'}`}
+              className={`p-3 rounded-lg border cursor-pointer group transition-colors ${selectedScreenId === screen.id ? 'bg-emerald-900/40 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-dim hover:bg-white/10 hover:text-white'}`}
               onClick={() => setSelectedScreenId(screen.id)}
             >
-              <div className="truncate text-sm font-bold">
-                {idx + 1}. {TEMPLATES[screen.templateId].split(' ')[0]}
+              <div className="flex-1 truncate mr-2">
+                <span className="text-[10px] opacity-40 mr-2">{idx + 1}</span>
+                <span className="text-sm font-bold">{TEMPLATES[screen.templateId]?.split(' ')[0]}</span>
               </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); removeScreen(screen.id); }}
-                className="text-red-500/50 hover:text-red-500 font-bold px-2"
-              >&times;</button>
+              
+              <div className="flex items-center gap-1">
+                {idx > 0 && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); moveScreen(idx, 'up'); }}
+                    className="hover:text-emerald-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Subir"
+                  >▲</button>
+                )}
+                {idx < screens.length - 1 && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); moveScreen(idx, 'down'); }}
+                    className="hover:text-emerald-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Bajar"
+                  >▼</button>
+                )}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); removeScreen(screen.id); }}
+                  className="text-red-500/30 hover:text-red-500 font-bold px-1 ml-1"
+                  title="Eliminar Pantalla"
+                >&times;</button>
+              </div>
             </div>
           ))}
         </div>
@@ -518,18 +645,24 @@ const LevelEditor = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <label className="block">
                       <span className="text-dim text-xs font-bold mb-2 block">Imagen de Avatar</span>
-                      <select 
-                        value={AVATAR_IMAGES.some(a => a.id === currentScreen.data.avatarImage) ? currentScreen.data.avatarImage : 'custom'} 
-                        onChange={(e) => {
-                          if (e.target.value !== 'custom') handleChangeData('avatarImage', e.target.value);
-                        }}
-                        className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-main"
-                      >
-                        {AVATAR_IMAGES.map((av) => (
-                          <option key={av.id} value={av.id}>{av.label}</option>
-                        ))}
-                        <option value="custom">URL Personalizada...</option>
-                      </select>
+                      <div className="flex gap-2 mb-2">
+                        <select 
+                          value={AVATAR_IMAGES.some(a => a.id === currentScreen.data.avatarImage) ? currentScreen.data.avatarImage : 'custom'} 
+                          onChange={(e) => {
+                            if (e.target.value !== 'custom') handleChangeData('avatarImage', e.target.value);
+                          }}
+                          className="flex-1 bg-black/40 border border-white/10 p-2 rounded-lg text-main"
+                        >
+                          {AVATAR_IMAGES.map((av) => (
+                            <option key={av.id} value={av.id}>{av.label}</option>
+                          ))}
+                          <option value="custom">URL / Escena Personalizada...</option>
+                        </select>
+                        <label className={`cursor-pointer px-3 py-2 rounded-lg font-bold text-[10px] flex items-center gap-2 transition-all ${uploadingImage ? 'bg-white/5 text-white/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'}`}>
+                          {uploadingImage ? '...' : 'Subir'}
+                          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
+                        </label>
+                      </div>
                       <input 
                         type="text" 
                         placeholder="/avatars/mi-imagen.png"
@@ -697,21 +830,170 @@ const LevelEditor = () => {
                   />
                 </label>
 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-4">
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-6">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div>
+                      <h4 className="text-emerald-400 font-bold uppercase tracking-widest text-[10px]">Control de Avatar</h4>
+                      <p className="text-[9px] text-white/30">¿Cambiar foto según quien hable?</p>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={currentScreen.data.autoChangeAvatar} 
+                      onChange={(e) => handleChangeData('autoChangeAvatar', e.target.checked)}
+                      className="w-5 h-5 accent-emerald-500"
+                    />
+                  </div>
+
                   <label className="block">
-                    <span className="text-dim text-xs font-bold mb-2 block">Imagen de Avatar</span>
-                    <select 
-                      value={currentScreen.data.avatarImage} 
+                    <span className="text-dim text-xs font-bold mb-2 block">{currentScreen.data.autoChangeAvatar ? 'Imagen por Defecto / Fondo' : 'Imagen Exclusiva (Fija)'}</span>
+                    <div className="flex gap-2 mb-2">
+                        <select 
+                        value={AVATAR_IMAGES.some(a => a.id === currentScreen.data.avatarImage) ? currentScreen.data.avatarImage : 'custom'} 
+                        onChange={(e) => {
+                            if (e.target.value !== 'custom') handleChangeData('avatarImage', e.target.value);
+                        }}
+                        className="flex-1 bg-black/40 border border-white/10 p-2 rounded-lg text-main text-xs"
+                        >
+                        {AVATAR_IMAGES.map((av) => (
+                            <option key={av.id} value={av.id}>{av.label}</option>
+                        ))}
+                        <option value="custom">URL / Escena Personalizada...</option>
+                        </select>
+                        <label className={`cursor-pointer px-3 py-2 rounded-lg font-bold text-[10px] flex items-center gap-2 transition-all ${uploadingImage ? 'bg-white/5 text-white/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'}`}>
+                          {uploadingImage ? '...' : 'Subir Escena'}
+                          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
+                        </label>
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="URL de imagen personalizada..."
+                      value={currentScreen.data.avatarImage}
                       onChange={(e) => handleChangeData('avatarImage', e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-main"
-                    >
-                      {AVATAR_IMAGES.map((av) => (
-                        <option key={av.id} value={av.id}>{av.label}</option>
-                      ))}
-                    </select>
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-main text-[10px]"
+                    />
                   </label>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-emerald-400 font-bold uppercase tracking-widest text-[10px]">Mapeo de Personajes</h4>
+                      <button 
+                        onClick={() => {
+                          const name = prompt("Nombre del personaje (ej: El Guardián):");
+                          if (name) {
+                            const newSpeakers = { ...currentScreen.data.speakers };
+                            newSpeakers[name] = { 
+                              avatar: '/guardian.png', 
+                              color: '#10b981', 
+                              titleColor: '#10b981',
+                              textColor: '#ffffff',
+                              titleSize: 14,
+                              dialogueSize: 24
+                            };
+                            handleChangeData('speakers', newSpeakers);
+                          }
+                        }}
+                        className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 hover:bg-emerald-500/40"
+                      >
+                        + Añadir Personaje
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {Object.entries(currentScreen.data.speakers || {}).map(([name, config], i) => (
+                        <div key={i} className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white font-bold text-xs">{name}</span>
+                            <button 
+                              onClick={() => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                delete newSpeakers[name];
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              className="text-red-500/50 hover:text-red-500 text-xs"
+                            >Eliminar</button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                             <select 
+                              value={config.avatar} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].avatar = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            >
+                              {AVATAR_IMAGES.map((av) => (
+                                <option key={av.id} value={av.id}>{av.label}</option>
+                              ))}
+                            </select>
+                            <input 
+                              type="text" 
+                              value={config.color} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].color = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              placeholder="#Glow"
+                              title="Color de Resplandor/Acento"
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            />
+                            <input 
+                              type="text" 
+                              value={config.titleColor || config.color || '#10b981'} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].titleColor = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              placeholder="#Título"
+                              title="Color del Título (Nombre)"
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            />
+                            <input 
+                              type="text" 
+                              value={config.textColor || '#ffffff'} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].textColor = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              placeholder="#Texto"
+                              title="Color de la Letra"
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            />
+                            {/* Nuevos Tamaños por Personaje */}
+                            <input 
+                              type="number" 
+                              value={config.titleSize || 14} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].titleSize = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              placeholder="Tit. px"
+                              title="Tamaño Título (px)"
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            />
+                            <input 
+                              type="number" 
+                              value={config.dialogueSize || 24} 
+                              onChange={(e) => {
+                                const newSpeakers = { ...currentScreen.data.speakers };
+                                newSpeakers[name].dialogueSize = e.target.value;
+                                handleChangeData('speakers', newSpeakers);
+                              }}
+                              placeholder="Diag. px"
+                              title="Tamaño Diálogo (px)"
+                              className="bg-black/20 border border-white/10 p-1 rounded text-[10px] text-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between border-t border-white/5 pt-4">
                     <span className="text-xs text-dim">Continuar auto. al terminar audio</span>
                     <input 
                       type="checkbox" 
@@ -720,6 +1002,374 @@ const LevelEditor = () => {
                       className="w-5 h-5 accent-emerald-500"
                     />
                   </div>
+                </div>
+              </div>
+            )}
+
+            {currentScreen?.templateId === 'T16_STORY_STEPS' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-4">
+                  <div className="flex justify-between items-center px-2">
+                    <h3 className="text-emerald-400 font-bold uppercase tracking-widest text-[10px]">Escenas Narrativas</h3>
+                    <button 
+                      onClick={() => {
+                        const newScenes = [...(currentScreen.data.scenes || [])];
+                        newScenes.push({ 
+                          id: generateId(), 
+                          character: currentScreen.data.defaultCharacter || 'El Guardián', 
+                          image: currentScreen.data.defaultImage || '/guardian.png',
+                          phrases: ['Nueva frase para esta escena...']
+                        });
+                        handleChangeData('scenes', newScenes);
+                      }}
+                      className="text-[9px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30 hover:bg-emerald-500/40"
+                    >
+                      + Añadir Escena
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {(currentScreen.data.scenes || []).map((scene, sIdx) => (
+                      <div key={scene.id} className="p-5 bg-black/40 border border-white/10 rounded-xl space-y-4 relative">
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                           <span className="text-[10px] font-black text-emerald-500/50 uppercase tracking-tighter">Escena {sIdx + 1}</span>
+                           <button 
+                            onClick={() => {
+                              const newScenes = currentScreen.data.scenes.filter(s => s.id !== scene.id);
+                              handleChangeData('scenes', newScenes);
+                            }}
+                            className="text-red-500/40 hover:text-red-500 text-[9px] uppercase font-bold"
+                           >Eliminar Escena</button>
+                        </div>
+                        
+                        {/* Config de Escena (Imagen y Personaje) */}
+                        <div className="grid grid-cols-2 gap-3">
+                           <label className="block">
+                              <span className="text-[9px] text-dim uppercase mb-1 block font-bold">Personaje</span>
+                              <input 
+                                type="text"
+                                value={scene.character}
+                                onChange={(e) => {
+                                  const newScenes = [...currentScreen.data.scenes];
+                                  newScenes[sIdx].character = e.target.value;
+                                  handleChangeData('scenes', newScenes);
+                                }}
+                                className="w-full bg-black/40 border border-white/10 p-2 rounded text-xs text-white"
+                              />
+                           </label>
+                           <label className="block text-right">
+                              <span className="text-[9px] text-dim uppercase mb-1 block font-bold">Imagen de Fondo</span>
+                              <div className="flex gap-1 justify-end">
+                                <select 
+                                  value={AVATAR_IMAGES.some(av => av.id === scene.image) ? scene.image : 'custom'}
+                                  onChange={(e) => {
+                                    if (e.target.value !== 'custom') {
+                                      const newScenes = [...currentScreen.data.scenes];
+                                      newScenes[sIdx].image = e.target.value;
+                                      handleChangeData('scenes', newScenes);
+                                    }
+                                  }}
+                                  className="bg-black/40 border border-white/10 p-1 rounded text-[10px] text-white"
+                                >
+                                  {AVATAR_IMAGES.map(av => <option key={av.id} value={av.id}>{av.label}</option>)}
+                                  <option value="custom">URL...</option>
+                                </select>
+                                <label className="cursor-pointer px-2 py-1 bg-blue-600 rounded text-[9px] hover:bg-blue-500 text-white font-bold">
+                                   Subir
+                                   <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    onChange={async (e) => {
+                                      const file = e.target.files[0];
+                                      if (!file) return;
+                                      setUploadingImage(true);
+                                      try {
+                                        const storageRef = ref(storage, `story_scenes/${lessonId || 'new'}/${generateId()}_${file.name}`);
+                                        await uploadBytes(storageRef, file);
+                                        const url = await getDownloadURL(storageRef);
+                                        const newScenes = [...currentScreen.data.scenes];
+                                        newScenes[sIdx].image = url;
+                                        handleChangeData('scenes', newScenes);
+                                      } catch (err) { console.error(err); }
+                                      finally { setUploadingImage(false); }
+                                    }} 
+                                   />
+                                </label>
+                              </div>
+                           </label>
+                        </div>
+
+                        {/* LISTA DE FRASES DENTRO DE LA ESCENA */}
+                        <div className="space-y-2 pt-2">
+                           <div className="flex justify-between items-center px-1">
+                             <span className="text-[9px] text-white/30 uppercase font-black">Frases en esta escena</span>
+                             <button 
+                               onClick={() => {
+                                 const newScenes = [...currentScreen.data.scenes];
+                                 newScenes[sIdx].phrases = [...(newScenes[sIdx].phrases || []), 'Nueva frase...'];
+                                 handleChangeData('scenes', newScenes);
+                               }}
+                               className="text-[8px] bg-white/5 border border-white/10 text-white/50 px-2 py-0.5 rounded hover:bg-white/10"
+                             >+ Añadir Frase</button>
+                           </div>
+                           
+                           <div className="space-y-2">
+                             {(scene.phrases || []).map((phrase, pIdx) => (
+                               <div key={pIdx} className="flex gap-2 group/phrase items-start">
+                                 <div className="text-[10px] text-white/10 mt-3 font-mono">{pIdx + 1}</div>
+                                 <textarea 
+                                    value={phrase}
+                                    onChange={(e) => {
+                                      const newScenes = [...currentScreen.data.scenes];
+                                      newScenes[sIdx].phrases[pIdx] = e.target.value;
+                                      handleChangeData('scenes', newScenes);
+                                    }}
+                                    className="flex-1 bg-white/5 border border-white/5 p-2 rounded text-xs text-white min-h-[40px] focus:border-emerald-500/50 outline-none transition-all"
+                                 />
+                                 <button 
+                                   onClick={() => {
+                                      const newScenes = [...currentScreen.data.scenes];
+                                      newScenes[sIdx].phrases = newScenes[sIdx].phrases.filter((_, i) => i !== pIdx);
+                                      handleChangeData('scenes', newScenes);
+                                   }}
+                                   className="opacity-0 group-hover/phrase:opacity-100 text-red-500/40 hover:text-red-500 text-[10px] mt-3"
+                                 >✕</button>
+                               </div>
+                             ))}
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color de Acento (Glow/Progreso)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded text-xs text-white shadow-inner"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {currentScreen?.templateId === 'T15_VIDEO' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">URL del Video (MP4)</span>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="https://firebasestorage..."
+                      value={currentScreen.data.videoUrl || ''} 
+                      onChange={(e) => handleChangeData('videoUrl', e.target.value)}
+                      className="flex-1 bg-white/5 border border-white/10 p-3 rounded-lg text-main text-xs"
+                    />
+                    <label className={`cursor-pointer px-4 py-3 rounded-lg font-bold text-xs flex items-center gap-2 transition-all ${uploadingVideo ? 'bg-white/5 text-white/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'}`}>
+                      {uploadingVideo ? 'Subiendo...' : '📹 Subir Video'}
+                      <input type="file" className="hidden" accept="video/*" onChange={handleVideoUpload} disabled={uploadingVideo} />
+                    </label>
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Frase de Presentación</span>
+                  <textarea 
+                    value={currentScreen.data.phrase || ''} 
+                    onChange={(e) => handleChangeData('phrase', e.target.value)}
+                    rows="3"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main text-sm"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Ancho Máximo Video (px)</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.videoMaxWidth || 320} 
+                      onChange={(e) => handleChangeData('videoMaxWidth', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Tamaño de Fuente (px)</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.fontSize || 24} 
+                      onChange={(e) => handleChangeData('fontSize', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Acento (Glow)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Texto</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.textColor} 
+                      onChange={(e) => handleChangeData('textColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Borde Video</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.borderColor} 
+                      onChange={(e) => handleChangeData('borderColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                  <span className="text-xs text-dim">Continuar auto. al terminar video</span>
+                  <input 
+                    type="checkbox" 
+                    checked={currentScreen.data.autoContinue} 
+                    onChange={(e) => handleChangeData('autoContinue', e.target.checked)}
+                    className="w-5 h-5 accent-emerald-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Campos de T17_STATEMENT */}
+            {currentScreen?.templateId === 'T17_STATEMENT' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Frase Principal</span>
+                  <textarea 
+                    value={currentScreen.data.text || ''} 
+                    onChange={(e) => handleChangeData('text', e.target.value)}
+                    rows="4"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-serif text-xl leading-relaxed"
+                    placeholder="Escribe tu frase aquí..."
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Tipo de Animación</span>
+                    <select 
+                      value={currentScreen.data.animationType || 'typewriter'} 
+                      onChange={(e) => handleChangeData('animationType', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main shadow-lg"
+                    >
+                      <option value="typewriter">⌨️ Máquina de escribir</option>
+                      <option value="fade">🌬️ Aparecer (Fade)</option>
+                      <option value="blur">🌫️ Desenfoque (Blur)</option>
+                      <option value="zoom">🔍 Zoom</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Tamaño de Fuente (rem/px)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.fontSize || '2.5rem'} 
+                      onChange={(e) => handleChangeData('fontSize', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Velocidad (1=Normal, 2=Rápido)</span>
+                    <input 
+                      type="range" 
+                      min="0.2"
+                      max="3"
+                      step="0.1"
+                      value={currentScreen.data.typingSpeed || 1} 
+                      onChange={(e) => handleChangeData('typingSpeed', parseFloat(e.target.value))}
+                      className="w-full accent-emerald-500"
+                    />
+                    <div className="text-[10px] text-right text-dim">{currentScreen.data.typingSpeed || 1}x</div>
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Probar Audio</span>
+                    <button 
+                      onClick={() => {
+                        const audio = new Audio(currentScreen.data.keySoundUrl);
+                        audio.volume = currentScreen.data.volume || 0.2;
+                        audio.play().catch(e => alert("Bloqueado por el navegador. Haz clic en la página primero."));
+                      }}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-[10px] text-white hover:bg-white/10"
+                    >
+                      🔊 Reproducir Test
+                    </button>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Sonido de Tecla (URL MP3)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.keySoundUrl || ''} 
+                      onChange={(e) => handleChangeData('keySoundUrl', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main text-[10px]"
+                      placeholder="https://..."
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Volumen (0.0 a 1.0)</span>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={currentScreen.data.volume || 0.2} 
+                      onChange={(e) => handleChangeData('volume', parseFloat(e.target.value))}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Acento (Glow)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Texto</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.textColor} 
+                      onChange={(e) => handleChangeData('textColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Color Fondo</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.backgroundColor} 
+                      onChange={(e) => handleChangeData('backgroundColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-white"
+                    />
+                  </label>
                 </div>
               </div>
             )}

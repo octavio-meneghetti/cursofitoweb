@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import '@shared/theme/designSystem.css';
 
 const CourseManager = () => {
@@ -42,6 +42,38 @@ const CourseManager = () => {
 
     fetchLessons();
   }, [courseId]);
+  
+  const handleDeleteLesson = async (lessonId, lessonTitle) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar la lección "${lessonTitle}"? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      await deleteDoc(doc(db, 'lessons', lessonId));
+      setLessons(prev => prev.filter(l => l.id !== lessonId));
+      alert("Lección eliminada correctamente.");
+    } catch (err) {
+      console.error("Error al eliminar lección:", err);
+      alert("Hubo un error al intentar eliminar la lección.");
+    }
+  };
+
+  const handleDeleteBlock = async () => {
+    const blockLessons = lessons.filter(l => (l.blockNumber || 1) === selectedBlock);
+    if (blockLessons.length === 0) return alert("Este bloque ya está vacío.");
+
+    if (!window.confirm(`¡ADVERTENCIA! Vas a eliminar ${blockLessons.length} lecciones del Bloque ${selectedBlock}. ¿Estás absolutamente seguro de que quieres borrar el bloque completo?`)) return;
+
+    try {
+      // Borramos una por una (o podríamos usar un batch si fueran demasiadas)
+      const deletePromises = blockLessons.map(l => deleteDoc(doc(db, 'lessons', l.id)));
+      await Promise.all(deletePromises);
+      
+      setLessons(prev => prev.filter(l => (l.blockNumber || 1) !== selectedBlock));
+      alert(`Se han eliminado ${blockLessons.length} lecciones del Bloque ${selectedBlock}.`);
+    } catch (err) {
+      console.error("Error al eliminar bloque:", err);
+      alert("Hubo un error al intentar eliminar el bloque.");
+    }
+  };
 
   return (
     <div className="min-h-screen p-10 bg-dark text-main">
@@ -51,12 +83,20 @@ const CourseManager = () => {
           <h1 className="text-4xl font-bold tracking-widest uppercase mb-2">Gestor: {courseName}</h1>
           <p className="text-dim">Administra las lecciones de este módulo</p>
         </div>
-        <button 
-          onClick={() => navigate(`/editor/new/${courseId}`)}
-          className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
-        >
-          + NUEVA LECCIÓN
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleDeleteBlock}
+            className="px-5 py-2 bg-red-600/20 text-red-400 border border-red-500/30 font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all text-[10px] uppercase tracking-widest"
+          >
+            Borrar Bloque {selectedBlock} 🗑️
+          </button>
+          <button 
+            onClick={() => navigate(`/editor/new/${courseId}`)}
+            className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-500 shadow-xl shadow-emerald-900/40 text-[10px] uppercase tracking-widest"
+          >
+            + Nueva Lección
+          </button>
+        </div>
       </header>
 
       {/* Selector de Bloque */}
@@ -115,12 +155,23 @@ const CourseManager = () => {
                           <p className="text-dim text-xs">{lesson.screens?.length || 0} Pantallas • Req: {lesson.prerequisites?.length || 0}</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => navigate(`/editor/${lesson.id}`)}
-                        className="px-4 py-2 bg-white/5 border border-white/10 text-white font-bold rounded-lg hover:bg-white/10 uppercase tracking-widest text-[10px]"
-                      >
-                        Editar
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => navigate(`/editor/${lesson.id}`)}
+                          className="px-4 py-2 bg-white/10 border border-white/20 text-white font-bold rounded-lg hover:bg-white/20 uppercase tracking-widest text-[10px]"
+                        >
+                          Editar
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteLesson(lesson.id, lesson.title)}
+                          className="px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-400 font-bold rounded-lg hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest text-[10px] flex items-center gap-2"
+                        >
+                          <span>Borrar</span>
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

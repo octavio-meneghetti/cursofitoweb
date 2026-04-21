@@ -14,6 +14,9 @@ import ThermoTemplate from './templates/ThermoTemplate';
 import ScratchRevealTemplate from './templates/ScratchRevealTemplate';
 import MagneticPuzzleTemplate from './templates/MagneticPuzzleTemplate';
 import IntroTemplate from './templates/IntroTemplate';
+import VideoPresentationTemplate from './templates/VideoPresentationTemplate';
+import StorytellingTemplate from './templates/StorytellingTemplate';
+import StatementTemplate from './templates/StatementTemplate';
 
 const LessonEngine = ({ lesson, onExit, user }) => {
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
@@ -89,6 +92,12 @@ const LessonEngine = ({ lesson, onExit, user }) => {
         return <MagneticPuzzleTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T14_INTRO':
         return <IntroTemplate data={currentScreen.data} onNext={handleNext} />;
+      case 'T15_VIDEO':
+        return <VideoPresentationTemplate data={currentScreen.data} onNext={handleNext} />;
+      case 'T16_STORY_STEPS':
+        return <StorytellingTemplate data={currentScreen.data} onNext={handleNext} />;
+      case 'T17_STATEMENT':
+        return <StatementTemplate data={currentScreen.data} onNext={handleNext} />;
       default:
         return <div className="text-white p-10">Plantilla no encontrada: {currentScreen.templateId || currentScreen.template}</div>;
     }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 
-const SwipeTemplate = ({ data, onChange, isEditMode }) => {
+const SwipeTemplate = ({ data, onChange, isEditMode, onResult }) => {
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
@@ -87,7 +87,18 @@ const SwipeTemplate = ({ data, onChange, isEditMode }) => {
     
     if (Math.abs(offset) > threshold) {
       const swipedDirection = offset > 0 ? 'right' : 'left';
-      if (swipedDirection === activeCard.correctDirection) {
+      const isCorrect = swipedDirection === activeCard.correctDirection;
+
+      // Reportamos al sistema de maestría
+      if (onResult) {
+        onResult({
+          success: isCorrect,
+          conceptId: data.conceptId,
+          metadata: { cardText: activeCard.text, direction: swipedDirection }
+        });
+      }
+
+      if (isCorrect) {
         setFeedback({ success: true, text: activeCard.explanation || '¡Correcto!' });
         setTimeout(() => {
           setFeedback(null);
