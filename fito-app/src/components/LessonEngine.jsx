@@ -17,6 +17,9 @@ import IntroTemplate from './templates/IntroTemplate';
 import VideoPresentationTemplate from './templates/VideoPresentationTemplate';
 import StorytellingTemplate from './templates/StorytellingTemplate';
 import StatementTemplate from './templates/StatementTemplate';
+import PromiseChecklistTemplate from './templates/PromiseChecklistTemplate';
+import MissionActionTemplate from './templates/MissionActionTemplate';
+import BotanicalRecordTemplate from './templates/BotanicalRecordTemplate';
 
 const LessonEngine = ({ lesson, onExit, user }) => {
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
@@ -98,6 +101,12 @@ const LessonEngine = ({ lesson, onExit, user }) => {
         return <StorytellingTemplate data={currentScreen.data} onNext={handleNext} />;
       case 'T17_STATEMENT':
         return <StatementTemplate data={currentScreen.data} onNext={handleNext} />;
+      case 'T18_PROMISE_CHECKLIST':
+        return <PromiseChecklistTemplate data={currentScreen.data} onNext={handleNext} />;
+      case 'T19_MISSION_ACTION':
+        return <MissionActionTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
+      case 'T20_BOTANICAL_RECORD':
+        return <BotanicalRecordTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
       default:
         return <div className="text-white p-10">Plantilla no encontrada: {currentScreen.templateId || currentScreen.template}</div>;
     }

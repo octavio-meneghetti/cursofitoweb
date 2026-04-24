@@ -156,7 +156,7 @@ const CourseManager = () => {
               <div key={week} className="space-y-4">
                 <h2 className="text-emerald-400 font-bold uppercase tracking-widest border-b border-white/10 pb-2 flex items-center gap-3">
                   <span className="bg-emerald-500/10 px-2 py-1 rounded text-[10px]">SEMANA {week}</span>
-                  <span>{moduleConfig?.weeks?.[week] || 'Sin Nombre'}</span>
+                  <span>{moduleConfig?.blocks?.[selectedBlock]?.weeks?.[week] || 'Sin Nombre'}</span>
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {weekLessons.map((lesson) => (

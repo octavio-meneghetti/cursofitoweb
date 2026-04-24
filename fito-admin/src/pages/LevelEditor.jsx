@@ -12,6 +12,9 @@ import IntroTemplate from '@shared/components/templates/IntroTemplate';
 import VideoPresentationTemplate from '@shared/components/templates/VideoPresentationTemplate';
 import StorytellingTemplate from '@shared/components/templates/StorytellingTemplate';
 import StatementTemplate from '@shared/components/templates/StatementTemplate';
+import PromiseChecklistTemplate from '@shared/components/templates/PromiseChecklistTemplate';
+import MissionActionTemplate from '@shared/components/templates/MissionActionTemplate';
+import BotanicalRecordTemplate from '@shared/components/templates/BotanicalRecordTemplate';
 import '@shared/theme/designSystem.css';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, getDocs } from 'firebase/firestore';
@@ -34,7 +37,10 @@ const TEMPLATES = {
   T14_INTRO: 'Intro: Narración Cinematográfica (Audio + Subtítulos)',
   T15_VIDEO: 'Presentación de Video (MP4 + Frase)',
   T16_STORY_STEPS: 'Storytelling: Diálogos por Pasos (Multipantalla Interna)',
-  T17_STATEMENT: 'Frase Centrada (Minimalista + Animación)'
+  T17_STATEMENT: 'Frase Centrada (Minimalista + Animación)',
+  T18_PROMISE_CHECKLIST: 'Hoja de Ruta: Promesa + Objetivos (Auto-check)',
+  T19_MISSION_ACTION: 'Misión: Acción Real (Con Ayuda/Sugerencia)',
+  T20_BOTANICAL_RECORD: 'Registro Botánico: Ficha de 5 Rasgos'
 };
 
 const AVATAR_IMAGES = [
@@ -98,10 +104,49 @@ const DEFAULT_DRAG_DATA = {
 };
 
 const DEFAULT_REWARD_DATA = {
-  badgeName: 'Guardián de la Vida',
-  badgeIcon: '🏅',
-  message: 'Has dominado este concepto.',
-  particles: true
+  title: '¡Medalla de Sabiduría!',
+  message: 'Has completado el desafío con éxito.',
+  icon: '🏆',
+  accentColor: '#10b981'
+};
+
+const DEFAULT_CHECKLIST_DATA = {
+  character: 'El Cartógrafo',
+  avatarImage: '/avatars/cartografo.png',
+  bubbleText: 'Hoy no vas a aprender nombres raros. Vas a aprender algo más útil: mapear tu estado.',
+  items: [
+    { id: generateId(), text: 'Ubico mi tensión', completed: false },
+    { id: generateId(), text: 'Reconozco el mensajero', completed: false },
+    { id: generateId(), text: 'Registro el terreno (24h)', completed: false }
+  ],
+  accentColor: '#10b981',
+  buttonText: 'VAMOS',
+  bubbleFontSize: '0.875rem',
+  itemFontSize: '0.875rem'
+};
+
+const DEFAULT_MISSION_DATA = {
+  missionTitle: 'Misión 1: Elegí una planta',
+  instruction: 'Elegí una planta cerca. No importa cuál. Si no sabés su nombre, mejor.',
+  successButtonText: 'YA LA TENGO',
+  helpButtonText: 'NO ENCUENTRO',
+  helpMessage: 'Podés buscar una hoja, un árbol, una maleza o incluso una maceta.',
+  accentColor: '#10b981',
+  titleFontSize: '1.5rem',
+  instructionFontSize: '1.1rem'
+};
+
+const DEFAULT_BOTANICAL_DATA = {
+  title: 'Describila en 5 rasgos',
+  traits: [
+    { id: 'color', label: 'Color', options: ['Verde claro', 'Verde oscuro', 'Rojizo', 'Otro'], icon: '🎨' },
+    { id: 'texture', label: 'Textura', options: ['Lisa', 'Áspera', 'Carnosa', 'Fina', 'Dura'], icon: '✋' },
+    { id: 'aroma', label: 'Aroma', options: ['Sin aroma', 'Suave', 'Fuerte', 'Dulce', 'Resinoso'], icon: '👃' },
+    { id: 'shape', label: 'Forma', options: ['Hojas grandes', 'Hojas pequeñas', 'Alargadas', 'Redondas'], icon: '📐' },
+    { id: 'place', label: 'Lugar', options: ['Maceta', 'Suelo', 'Vereda', 'Sombra', 'Sol'], icon: '📍' }
+  ],
+  buttonText: 'GUARDAR REGISTRO',
+  accentColor: '#10b981'
 };
 
 const DEFAULT_JOURNAL_DATA = {
@@ -324,6 +369,9 @@ const LevelEditor = () => {
     else if (newTemplateId === 'T15_VIDEO') defaultData = { ...DEFAULT_VIDEO_DATA };
     else if (newTemplateId === 'T16_STORY_STEPS') defaultData = { ...DEFAULT_STORY_DATA };
     else if (newTemplateId === 'T17_STATEMENT') defaultData = { ...DEFAULT_STATEMENT_DATA };
+    else if (newTemplateId === 'T18_PROMISE_CHECKLIST') defaultData = { ...DEFAULT_CHECKLIST_DATA };
+    else if (newTemplateId === 'T19_MISSION_ACTION') defaultData = { ...DEFAULT_MISSION_DATA };
+    else if (newTemplateId === 'T20_BOTANICAL_RECORD') defaultData = { ...DEFAULT_BOTANICAL_DATA };
     
     updateCurrentScreen({
       templateId: newTemplateId,
@@ -463,6 +511,12 @@ const LevelEditor = () => {
         return <StorytellingTemplate data={screen.data} onNext={() => {}} />;
       case 'T17_STATEMENT':
         return <StatementTemplate key={JSON.stringify(screen.data)} data={screen.data} onNext={() => {}} />;
+      case 'T18_PROMISE_CHECKLIST':
+        return <PromiseChecklistTemplate data={screen.data} isEditMode={true} />;
+      case 'T19_MISSION_ACTION':
+        return <MissionActionTemplate data={screen.data} isEditMode={true} />;
+      case 'T20_BOTANICAL_RECORD':
+        return <BotanicalRecordTemplate data={screen.data} isEditMode={true} />;
       default:
         return <div className="text-dim p-10">Selecciona una plantilla válida.</div>;
     }
@@ -1390,6 +1444,323 @@ const LevelEditor = () => {
                     />
                   </label>
                 </div>
+              </div>
+            )}
+
+            {/* Campos de T18_PROMISE_CHECKLIST */}
+            {currentScreen?.templateId === 'T18_PROMISE_CHECKLIST' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Tamaño Fuente Burbuja</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.bubbleFontSize || '0.875rem'} 
+                      onChange={(e) => handleChangeData('bubbleFontSize', e.target.value)}
+                      className="w-full bg-black/60 border border-white/20 p-3 rounded-lg text-sm text-white focus:border-emerald-500/50 outline-none transition-all"
+                      placeholder="0.875rem / 16px"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Tamaño Fuente Objetivos</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.itemFontSize || '0.875rem'} 
+                      onChange={(e) => handleChangeData('itemFontSize', e.target.value)}
+                      className="w-full bg-black/60 border border-white/20 p-3 rounded-lg text-sm text-white focus:border-emerald-500/50 outline-none transition-all"
+                      placeholder="0.875rem / 16px"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Personaje</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.character || ''} 
+                      onChange={(e) => handleChangeData('character', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Color Acento</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor || '#10b981'} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs font-bold mb-2 block">Imagen de Misión (Personaje/Medalla)</span>
+                  <div className="flex gap-2 mb-2">
+                    <select 
+                      value={AVATAR_IMAGES.some(a => a.id === currentScreen.data.avatarImage) ? currentScreen.data.avatarImage : 'custom'} 
+                      onChange={(e) => {
+                        if (e.target.value !== 'custom') handleChangeData('avatarImage', e.target.value);
+                      }}
+                      className="flex-1 bg-black/40 border border-white/10 p-2 rounded-lg text-main text-xs"
+                    >
+                      {AVATAR_IMAGES.map((av) => (
+                        <option key={av.id} value={av.id}>{av.label}</option>
+                      ))}
+                      <option value="custom">URL / Imagen Personalizada...</option>
+                    </select>
+                    <label className={`cursor-pointer px-3 py-2 rounded-lg font-bold text-[10px] flex items-center gap-2 transition-all ${uploadingImage ? 'bg-white/5 text-white/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'}`}>
+                      {uploadingImage ? '...' : 'Subir'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
+                    </label>
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="/avatars/mi-imagen.png"
+                    value={currentScreen.data.avatarImage || ''} 
+                    onChange={(e) => handleChangeData('avatarImage', e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-main text-xs"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Texto de la Burbuja</span>
+                  <textarea 
+                    value={currentScreen.data.bubbleText || ''} 
+                    onChange={(e) => handleChangeData('bubbleText', e.target.value)}
+                    rows="3"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main italic"
+                  />
+                </label>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-dim text-xs uppercase font-bold">Objetivos de la Hoja de Ruta</span>
+                    <button 
+                      onClick={() => {
+                        const newItems = [...(currentScreen.data.items || [])];
+                        newItems.push({ id: generateId(), text: 'Nuevo objetivo', completed: false });
+                        handleChangeData('items', newItems);
+                      }}
+                      className="text-[10px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30 hover:bg-emerald-500/40"
+                    >
+                      + Añadir Objetivo
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {(currentScreen.data.items || []).map((item, idx) => (
+                      <div key={item.id} className="flex gap-2 items-center bg-white/5 p-2 rounded-lg border border-white/5">
+                        <input 
+                          type="checkbox" 
+                          checked={item.completed} 
+                          onChange={(e) => {
+                            const newItems = [...currentScreen.data.items];
+                            newItems[idx].completed = e.target.checked;
+                            handleChangeData('items', newItems);
+                          }}
+                          className="w-5 h-5 accent-emerald-500"
+                        />
+                        <input 
+                          type="text" 
+                          value={item.text} 
+                          onChange={(e) => {
+                            const newItems = [...currentScreen.data.items];
+                            newItems[idx].text = e.target.value;
+                            handleChangeData('items', newItems);
+                          }}
+                          className="flex-1 bg-transparent border-none text-sm text-white focus:ring-0"
+                        />
+                        <button 
+                          onClick={() => {
+                            const newItems = currentScreen.data.items.filter((_, i) => i !== idx);
+                            handleChangeData('items', newItems);
+                          }}
+                          className="text-red-500/50 hover:text-red-500 px-2"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Texto del Botón</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.buttonText || 'VAMOS'} 
+                    onChange={(e) => handleChangeData('buttonText', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold"
+                  />
+                </label>
+              </div>
+            )}
+
+            {/* Campos de T19_MISSION_ACTION */}
+            {currentScreen?.templateId === 'T19_MISSION_ACTION' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Título de la Misión</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.missionTitle || ''} 
+                      onChange={(e) => handleChangeData('missionTitle', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Color Acento</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor || '#10b981'} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Instrucción Principal</span>
+                  <textarea 
+                    value={currentScreen.data.instruction || ''} 
+                    onChange={(e) => handleChangeData('instruction', e.target.value)}
+                    rows="4"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-medium"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Botón Éxito (Siguiente)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.successButtonText || 'YA LA TENGO'} 
+                      onChange={(e) => handleChangeData('successButtonText', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Botón Ayuda</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.helpButtonText || 'NO ENCUENTRO'} 
+                      onChange={(e) => handleChangeData('helpButtonText', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Mensaje de Ayuda/Sugerencia</span>
+                  <textarea 
+                    value={currentScreen.data.helpMessage || ''} 
+                    onChange={(e) => handleChangeData('helpMessage', e.target.value)}
+                    rows="2"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main italic"
+                    placeholder="Escribe aquí las sugerencias..."
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Tamaño Fuente Título</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.titleFontSize || '1.5rem'} 
+                      onChange={(e) => handleChangeData('titleFontSize', e.target.value)}
+                      className="w-full bg-black/60 border border-white/20 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Tamaño Fuente Instrucción</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.instructionFontSize || '1.1rem'} 
+                      onChange={(e) => handleChangeData('instructionFontSize', e.target.value)}
+                      className="w-full bg-black/60 border border-white/20 p-2 rounded text-xs text-white"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Campos de T20_BOTANICAL_RECORD */}
+            {currentScreen?.templateId === 'T20_BOTANICAL_RECORD' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Título de la Pantalla</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.title || ''} 
+                    onChange={(e) => handleChangeData('title', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                  />
+                </label>
+
+                <div className="space-y-4">
+                  <span className="text-dim text-xs uppercase font-bold block">Configuración de Rasgos (Cards)</span>
+                  {currentScreen.data.traits?.map((trait, idx) => (
+                    <div key={trait.id} className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-3">
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={trait.icon} 
+                          onChange={(e) => {
+                            const newTraits = [...currentScreen.data.traits];
+                            newTraits[idx].icon = e.target.value;
+                            handleChangeData('traits', newTraits);
+                          }}
+                          className="w-12 bg-white/5 border border-white/10 p-2 rounded text-center"
+                          placeholder="Emoji"
+                        />
+                        <input 
+                          type="text" 
+                          value={trait.label} 
+                          onChange={(e) => {
+                            const newTraits = [...currentScreen.data.traits];
+                            newTraits[idx].label = e.target.value;
+                            handleChangeData('traits', newTraits);
+                          }}
+                          className="flex-1 bg-white/5 border border-white/10 p-2 rounded text-sm font-bold"
+                          placeholder="Nombre del Rasgo"
+                        />
+                      </div>
+                      <input 
+                        type="text" 
+                        value={trait.options?.join(', ')} 
+                        onChange={(e) => {
+                          const newTraits = [...currentScreen.data.traits];
+                          newTraits[idx].options = e.target.value.split(',').map(s => s.trim());
+                          handleChangeData('traits', newTraits);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 p-2 rounded text-xs text-dim"
+                        placeholder="Opciones (separadas por coma)"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Texto del Botón</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.buttonText || 'GUARDAR REGISTRO'} 
+                    onChange={(e) => handleChangeData('buttonText', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Placeholder de Notas (Opcional)</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.notesPlaceholder || '¿Alguna observación extra? (Opcional)'} 
+                    onChange={(e) => handleChangeData('notesPlaceholder', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main italic text-sm"
+                  />
+                </label>
               </div>
             )}
           </div>

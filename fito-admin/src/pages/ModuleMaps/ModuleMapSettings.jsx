@@ -276,32 +276,40 @@ const ModuleMapSettings = () => {
                         blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], markerUrl: e.target.value } }
                       }))}
                     />
+
+                    {/* Nombres de Semanas Específicas por Bloque */}
+                    <div className="mt-6 pt-6 border-t border-white/10 space-y-3">
+                      <h3 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Temario: Semanas 1-6</h3>
+                      <div className="grid grid-cols-1 gap-2">
+                        {[1, 2, 3, 4, 5, 6].map(weekNum => (
+                          <div key={weekNum} className="flex flex-col gap-1">
+                            <label className="text-[7px] text-white/40 uppercase font-bold">Semana {weekNum}</label>
+                            <input 
+                              type="text" 
+                              placeholder={`Título de la semana...`}
+                              className="bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-emerald-500/50 outline-none transition-all"
+                              value={block?.weeks?.[weekNum] || ''}
+                              onChange={(e) => setMapConfig(prev => ({
+                                ...prev,
+                                blocks: { 
+                                  ...prev.blocks, 
+                                  [num]: { 
+                                    ...prev.blocks[num], 
+                                    weeks: { ...prev.blocks[num]?.weeks, [weekNum]: e.target.value }
+                                  } 
+                                }
+                              }))}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
 
-          <div className="mt-12 space-y-4 pb-10">
-            <h2 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Nombres de las Semanas (1-6)</h2>
-            <div className="grid grid-cols-1 gap-3">
-              {[1, 2, 3, 4, 5, 6].map(weekNum => (
-                <div key={weekNum} className="flex flex-col gap-1">
-                  <label className="text-[8px] text-white/40 uppercase font-black">Semana {weekNum}</label>
-                  <input 
-                    type="text" 
-                    placeholder={`Ej: Bases de la Nutrición`}
-                    className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500/50 outline-none transition-all"
-                    value={mapConfig.weeks?.[weekNum] || ''}
-                    onChange={(e) => setMapConfig(prev => ({
-                      ...prev,
-                      weeks: { ...prev.weeks, [weekNum]: e.target.value }
-                    }))}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Editor Visual */}
