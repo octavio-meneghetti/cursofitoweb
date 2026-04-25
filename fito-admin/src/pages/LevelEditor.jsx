@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import NarrativeTemplate from '@shared/components/templates/NarrativeTemplate';
 import QuizTemplate from '@shared/components/templates/QuizTemplate';
 import SwipeTemplate from '@shared/components/templates/SwipeTemplate';
@@ -15,6 +16,9 @@ import StatementTemplate from '@shared/components/templates/StatementTemplate';
 import PromiseChecklistTemplate from '@shared/components/templates/PromiseChecklistTemplate';
 import MissionActionTemplate from '@shared/components/templates/MissionActionTemplate';
 import BotanicalRecordTemplate from '@shared/components/templates/BotanicalRecordTemplate';
+import QuickBurstQuizTemplate from '@shared/components/templates/QuickBurstQuizTemplate';
+import DecisionGridTemplate from '@shared/components/templates/DecisionGridTemplate';
+import LessonEngine from '@shared/components/LessonEngine';
 import '@shared/theme/designSystem.css';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, getDocs } from 'firebase/firestore';
@@ -40,7 +44,9 @@ const TEMPLATES = {
   T17_STATEMENT: 'Frase Centrada (Minimalista + Animación)',
   T18_PROMISE_CHECKLIST: 'Hoja de Ruta: Promesa + Objetivos (Auto-check)',
   T19_MISSION_ACTION: 'Misión: Acción Real (Con Ayuda/Sugerencia)',
-  T20_BOTANICAL_RECORD: 'Registro Botánico: Ficha de 5 Rasgos'
+  T20_BOTANICAL_RECORD: 'Registro Botánico: Ficha de 5 Rasgos',
+  T21_QUICK_BURST: 'Quiz Ráfaga: 3 Preguntas Rápidas (Una Pantalla)',
+  T22_DECISION_GRID: 'Misión: Grilla de Decisión Intuitiva'
 };
 
 const AVATAR_IMAGES = [
@@ -147,6 +153,34 @@ const DEFAULT_BOTANICAL_DATA = {
   ],
   buttonText: 'GUARDAR REGISTRO',
   accentColor: '#10b981'
+};
+
+const DEFAULT_BURST_DATA = {
+  title: 'Mini-quiz de Validación',
+  questions: [
+    { id: 'q1', text: '¿Para empezar, es obligatorio saber el nombre?', options: ['No', 'Sí'], correctIndex: 0 },
+    { id: 'q2', text: '¿Qué es más importante hoy?', options: ['Mirar con atención', 'Buscar recetas'], correctIndex: 0 },
+    { id: 'q3', text: '¿Cuál es el primer gesto del terapeuta?', options: ['Observar', 'Intervenir'], correctIndex: 0 }
+  ],
+  accentColor: '#10b981'
+};
+
+const DEFAULT_DECISION_GRID_DATA = {
+  title: 'Misión: Toma una Decisión',
+  instruction: 'Elige la parte de la planta con la que vas a trabajar hoy.',
+  options: [
+    { id: 'raiz', label: 'Raíz', icon: '🪵' },
+    { id: 'hoja', label: 'Hoja', icon: '🌿' },
+    { id: 'flor', label: 'Flor', icon: '🌸' },
+    { id: 'tallo', label: 'Tallo', icon: '🎋' },
+    { id: 'semilla', label: 'Semilla', icon: '🌰' },
+    { id: 'nose', label: 'No estoy seguro', icon: '❓' }
+  ],
+  footerText: 'Recuerda que no hay respuesta incorrecta: estamos entrenando tu mirada.',
+  buttonText: 'REGISTRAR',
+  accentColor: '#10b981',
+  cardPadding: '1.5rem',
+  iconSize: '2.5rem'
 };
 
 const DEFAULT_JOURNAL_DATA = {
@@ -260,6 +294,7 @@ const LevelEditor = () => {
     { id: generateId(), templateId: 'T01_NARRATIVE', data: { ...DEFAULT_NARRATIVE_DATA } }
   ]);
   const [selectedScreenId, setSelectedScreenId] = useState(screens[0].id);
+  const [isTestMode, setIsTestMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -308,6 +343,7 @@ const LevelEditor = () => {
       id: generateId(),
       templateId: 'T01_NARRATIVE',
       conceptId: '', // Nuevo campo para el Nexo de Saberes
+      navigation: { type: 'sequential', jumpTarget: { lessonId: '', screenId: '' } },
       data: { ...DEFAULT_NARRATIVE_DATA }
     };
     setScreens([...screens, newScreen]);
@@ -372,6 +408,8 @@ const LevelEditor = () => {
     else if (newTemplateId === 'T18_PROMISE_CHECKLIST') defaultData = { ...DEFAULT_CHECKLIST_DATA };
     else if (newTemplateId === 'T19_MISSION_ACTION') defaultData = { ...DEFAULT_MISSION_DATA };
     else if (newTemplateId === 'T20_BOTANICAL_RECORD') defaultData = { ...DEFAULT_BOTANICAL_DATA };
+    else if (newTemplateId === 'T21_QUICK_BURST') defaultData = { ...DEFAULT_BURST_DATA };
+    else if (newTemplateId === 'T22_DECISION_GRID') defaultData = { ...DEFAULT_DECISION_GRID_DATA };
     
     updateCurrentScreen({
       templateId: newTemplateId,
@@ -517,6 +555,10 @@ const LevelEditor = () => {
         return <MissionActionTemplate data={screen.data} isEditMode={true} />;
       case 'T20_BOTANICAL_RECORD':
         return <BotanicalRecordTemplate data={screen.data} isEditMode={true} />;
+      case 'T21_QUICK_BURST':
+        return <QuickBurstQuizTemplate data={screen.data} isEditMode={true} />;
+      case 'T22_DECISION_GRID':
+        return <DecisionGridTemplate data={screen.data} isEditMode={true} />;
       default:
         return <div className="text-dim p-10">Selecciona una plantilla válida.</div>;
     }
@@ -1763,16 +1805,328 @@ const LevelEditor = () => {
                 </label>
               </div>
             )}
+
+            {/* Campos de T21_QUICK_BURST */}
+            {currentScreen?.templateId === 'T21_QUICK_BURST' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Título del Quiz</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.title || ''} 
+                    onChange={(e) => handleChangeData('title', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-dim text-xs uppercase font-bold block">Intensidad de Vibración (Error)</span>
+                    <span className="text-emerald-500 font-bold text-xs">{currentScreen.data.shakeIntensity || 50}px</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="200" 
+                    value={currentScreen.data.shakeIntensity || 50} 
+                    onChange={(e) => handleChangeData('shakeIntensity', parseInt(e.target.value))}
+                    className="w-full accent-emerald-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                  />
+                </label>
+
+                <div className="space-y-4">
+                  <span className="text-dim text-xs uppercase font-bold block">Preguntas de la Ráfaga (3 preguntas)</span>
+                  {currentScreen.data.questions?.map((q, qIdx) => (
+                    <div key={q.id} className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-4">
+                      <label className="block">
+                        <span className="text-[10px] text-dim uppercase mb-2 block">Pregunta {qIdx + 1}</span>
+                        <input 
+                          type="text" 
+                          value={q.text} 
+                          onChange={(e) => {
+                            const newQs = [...currentScreen.data.questions];
+                            newQs[qIdx].text = e.target.value;
+                            handleChangeData('questions', newQs);
+                          }}
+                          className="w-full bg-white/5 border border-white/10 p-2 rounded text-sm font-bold"
+                        />
+                      </label>
+                      <div className="space-y-2">
+                        {q.options.map((opt, optIdx) => (
+                          <div key={optIdx} className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                const newQs = [...currentScreen.data.questions];
+                                newQs[qIdx].correctIndex = optIdx;
+                                handleChangeData('questions', newQs);
+                              }}
+                              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 ${
+                                q.correctIndex === optIdx 
+                                  ? 'bg-[#10b981] border-[#10b981] text-black shadow-[0_0_30px_rgba(16,185,129,0.8)] scale-110' 
+                                  : 'bg-white/5 border-white/20 text-white/5 hover:border-white/40'
+                              }`}
+                            >
+                              <span className="text-sm font-black">✓</span>
+                            </button>
+                            <input 
+                              type="text" 
+                              value={opt} 
+                              onChange={(e) => {
+                                const newQs = [...currentScreen.data.questions];
+                                newQs[qIdx].options[optIdx] = e.target.value;
+                                handleChangeData('questions', newQs);
+                              }}
+                              className={`flex-1 bg-white/5 border p-3 rounded-xl text-sm transition-all ${
+                                q.correctIndex === optIdx 
+                                  ? 'border-emerald-500/50 text-white font-bold' 
+                                  : 'border-white/10 text-white/40'
+                              }`}
+                              placeholder={`Opción ${optIdx + 1}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Campos de T22_DECISION_GRID */}
+            {currentScreen?.templateId === 'T22_DECISION_GRID' && (
+              <div className="space-y-6 animate-fade-in text-main">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Título Pequeño (Arriba)</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.title || ''} 
+                      onChange={(e) => handleChangeData('title', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Color Acento</span>
+                    <input 
+                      type="text" 
+                      value={currentScreen.data.accentColor || '#10b981'} 
+                      onChange={(e) => handleChangeData('accentColor', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Altura de Recuadros ({currentScreen.data.cardPadding || '1.5rem'})</span>
+                    <input 
+                      type="range" 
+                      min="0.5" 
+                      max="5" 
+                      step="0.1"
+                      value={parseFloat(currentScreen.data.cardPadding) || 1.5} 
+                      onChange={(e) => handleChangeData('cardPadding', `${e.target.value}rem`)}
+                      className="w-full accent-emerald-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Tamaño de Iconos ({currentScreen.data.iconSize || '2.5rem'})</span>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="6" 
+                      step="0.1"
+                      value={parseFloat(currentScreen.data.iconSize) || 2.5} 
+                      onChange={(e) => handleChangeData('iconSize', `${e.target.value}rem`)}
+                      className="w-full accent-emerald-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Instrucción Principal</span>
+                  <textarea 
+                    value={currentScreen.data.instruction || ''} 
+                    onChange={(e) => handleChangeData('instruction', e.target.value)}
+                    rows="2"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold"
+                  />
+                </label>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-dim text-xs uppercase font-bold">Opciones de la Grilla</span>
+                    <button 
+                      onClick={() => {
+                        const newOptions = [...(currentScreen.data.options || [])];
+                        newOptions.push({ id: generateId(), label: 'Nueva Opción', icon: '🌿' });
+                        handleChangeData('options', newOptions);
+                      }}
+                      className="text-[10px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30"
+                    >
+                      + Añadir Opción
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2">
+                    {currentScreen.data.options?.map((opt, idx) => (
+                      <div key={opt.id} className="flex gap-2 bg-white/5 p-2 rounded-xl border border-white/5 items-center">
+                        <input 
+                          type="text" 
+                          value={opt.icon} 
+                          onChange={(e) => {
+                            const newOptions = [...currentScreen.data.options];
+                            newOptions[idx].icon = e.target.value;
+                            handleChangeData('options', newOptions);
+                          }}
+                          className="w-12 bg-black/40 border border-white/10 p-2 rounded text-center"
+                          placeholder="Icono"
+                        />
+                        <input 
+                          type="text" 
+                          value={opt.label} 
+                          onChange={(e) => {
+                            const newOptions = [...currentScreen.data.options];
+                            newOptions[idx].label = e.target.value;
+                            handleChangeData('options', newOptions);
+                          }}
+                          className="flex-1 bg-black/40 border border-white/10 p-2 rounded text-sm text-white"
+                          placeholder="Etiqueta"
+                        />
+                        <button 
+                          onClick={() => {
+                            const newOptions = currentScreen.data.options.filter((_, i) => i !== idx);
+                            handleChangeData('options', newOptions);
+                          }}
+                          className="text-red-500/50 hover:text-red-500 px-2"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Texto Educativo (Pie de página)</span>
+                  <textarea 
+                    value={currentScreen.data.footerText || ''} 
+                    onChange={(e) => handleChangeData('footerText', e.target.value)}
+                    rows="2"
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main italic text-sm"
+                    placeholder="Ej: No hay respuesta incorrecta..."
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-dim text-xs uppercase font-bold mb-2 block">Texto del Botón</span>
+                  <input 
+                    type="text" 
+                    value={currentScreen.data.buttonText || 'REGISTRAR'} 
+                    onChange={(e) => handleChangeData('buttonText', e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main font-bold uppercase tracking-widest"
+                  />
+                </label>
+              </div>
+            )}
+
+            {/* SECCIÓN DE NAVEGACIÓN GLOBAL (FLUJO) */}
+            <div className="pt-8 mt-12 border-t border-white/10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                <h3 className="text-lg font-black uppercase tracking-tighter text-white">Flujo de Navegación</h3>
+              </div>
+              
+              <div className="bg-[#0c0c12] p-6 rounded-3xl border border-white/10 space-y-6">
+                <label className="block">
+                  <span className="text-emerald-400/60 text-[10px] uppercase font-black mb-3 block">Tipo de Avance</span>
+                  <select 
+                    value={currentScreen?.navigation?.type || 'sequential'}
+                    onChange={(e) => {
+                      const nav = currentScreen.navigation || { type: 'sequential', jumpTarget: { lessonId: '', screenId: '' } };
+                      updateCurrentScreen({ navigation: { ...nav, type: e.target.value } });
+                    }}
+                    className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-base font-bold text-white outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="sequential">➡️ Siguiente (Normal)</option>
+                    <option value="jump">🔀 Salto (Personalizado)</option>
+                  </select>
+                </label>
+
+                {currentScreen?.navigation?.type === 'jump' && (
+                  <div className="space-y-4">
+                    <select 
+                      value={currentScreen.navigation.jumpTarget?.lessonId || ''}
+                      onChange={(e) => {
+                        const nav = currentScreen.navigation;
+                        updateCurrentScreen({ navigation: { ...nav, jumpTarget: { ...nav.jumpTarget, lessonId: e.target.value, screenId: '' } } });
+                      }}
+                      className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-sm text-white"
+                    >
+                      <option value="">-- Esta lección --</option>
+                      {allLessons.map(l => (
+                        <option key={l.id} value={l.id}>B{l.blockNumber} S{l.weekNumber} D{l.dayNumber} - {l.title}</option>
+                      ))}
+                    </select>
+
+                    <select 
+                      value={currentScreen.navigation.jumpTarget?.screenId || ''}
+                      onChange={(e) => {
+                        const nav = currentScreen.navigation;
+                        updateCurrentScreen({ navigation: { ...nav, jumpTarget: { ...nav.jumpTarget, screenId: e.target.value } } });
+                      }}
+                      className="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-sm text-white"
+                    >
+                      <option value="">-- Inicio de la lección --</option>
+                      {/* Si es la misma lección, usamos 'screens' locales y filtramos la actual */}
+                      {(!currentScreen.navigation.jumpTarget?.lessonId || currentScreen.navigation.jumpTarget?.lessonId === lessonId) 
+                        ? screens
+                            .filter(s => s.id !== currentScreen.id) // No saltar a uno mismo
+                            .map((s, idx) => {
+                              const realIdx = screens.findIndex(originalS => originalS.id === s.id);
+                              return (
+                                <option key={s.id} value={s.id}>
+                                  Pantalla {realIdx + 1}: {s.title || TEMPLATES[s.templateId]?.split(' ')[0] || s.templateId}
+                                </option>
+                              );
+                            })
+                        : /* Si es otra lección, buscamos en allLessons */
+                          allLessons.find(l => l.id === currentScreen.navigation.jumpTarget.lessonId)?.screens?.map((s, idx) => (
+                            <option key={s.id} value={s.id}>
+                              Pantalla {idx + 1}: {s.title || TEMPLATES[s.templateId]?.split(' ')[0] || s.templateId}
+                            </option>
+                          ))
+                      }
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-12 pb-20">
+              <button 
+                onClick={() => removeScreen(selectedScreenId)}
+                className="w-full py-4 rounded-2xl border border-red-500/30 text-red-500 text-xs font-black uppercase tracking-widest hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+              >
+                🗑️ ELIMINAR ESTA PANTALLA
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Simulador de Móvil (Live Preview) */}
-      <div className="w-96 bg-[#05070a] flex flex-col items-center justify-center relative p-8">
-        {/* Live Preview Badge removed for cleaner UI */}
+      <div className="w-96 bg-[#05070a] flex flex-col items-center justify-center relative p-8 border-l border-white/5">
+        <button 
+          onClick={() => setIsTestMode(true)}
+          className="mb-8 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center gap-2 group"
+        >
+          <span className="text-sm group-hover:scale-125 transition-transform">▶️</span>
+          PROBAR INTERACTIVIDAD
+        </button>
         
         <div 
-          className="bg-[#0c0c12] shadow-2xl overflow-hidden relative" 
+          className="bg-[#0c0c12] shadow-2xl overflow-hidden relative group" 
           style={{ 
             width: '340px', 
             height: '720px', 
@@ -1792,6 +2146,27 @@ const LevelEditor = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL DE VISTA PREVIA INTERACTIVA */}
+      <AnimatePresence>
+        {isTestMode && currentScreen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+          >
+            <div className="w-full h-full max-w-md bg-black relative shadow-2xl border-x border-white/10">
+              <LessonEngine 
+                lesson={{ id: lessonId, screens }} 
+                initialScreenIndex={screens.findIndex(s => s.id === selectedScreenId)}
+                onExit={() => setIsTestMode(false)}
+                user={{ uid: 'admin-test' }} // Usuario ficticio para pruebas
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
