@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-const OrderingTemplate = ({ data, onNext, onResult, isEditMode }) => {
-  const { instruction, items, conceptId } = data;
+const OrderingTemplate = ({ data, onNext, onResult, isEditMode, onChange }) => {
+  const { instruction, items = [], conceptId } = data;
   const [list, setList] = useState([]);
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
-    // Shuffle the items initially so they aren't in the correct order
-    if (items) {
+    if (items && !isEditMode) {
       const shuffled = [...items].sort(() => Math.random() - 0.5);
       setList(shuffled);
+    } else if (items) {
+      setList([...items].sort((a, b) => a.order - b.order));
     }
-  }, [items]);
+  }, [items, isEditMode]);
+
+  const handleChange = (field, value) => {
+    if (onChange) onChange(field, value);
+  };
 
   const onDragEnd = (result) => {
     if (!result.destination || isEditMode) return;
@@ -28,7 +33,6 @@ const OrderingTemplate = ({ data, onNext, onResult, isEditMode }) => {
   };
 
   const handleVerify = () => {
-    // Check if the current list order exactly matches the items array sorted by 'order'
     const sortedOriginal = [...items].sort((a, b) => a.order - b.order);
     const isCorrect = list.every((item, index) => item.id === sortedOriginal[index].id);
 
@@ -47,8 +51,68 @@ const OrderingTemplate = ({ data, onNext, onResult, isEditMode }) => {
     }
   };
 
+  if (isEditMode) {
+    return (
+      <div className="space-y-6 text-main">
+        <label className="block">
+          <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Instrucción</span>
+          <input 
+            type="text" 
+            value={instruction || ''} 
+            onChange={(e) => handleChange('instruction', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+            placeholder="Ej: Ordena los pasos del proceso..."
+          />
+        </label>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-dim text-[10px] uppercase font-bold">Elementos a Ordenar (En el orden correcto)</span>
+            <button 
+              onClick={() => {
+                const newItems = [...items];
+                const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.order)) : 0;
+                newItems.push({ id: Math.random().toString(36).substr(2, 9), label: 'Nuevo paso', order: maxOrder + 1 });
+                handleChange('items', newItems);
+              }}
+              className="text-[10px] bg-cyan-500/20 text-cyan-400 px-3 py-1 rounded-full border border-cyan-500/30"
+            >
+              + Añadir Paso
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {items.sort((a, b) => a.order - b.order).map((item, idx) => (
+              <div key={item.id} className="flex gap-2 items-center bg-white/5 p-2 rounded-lg border border-white/5">
+                <span className="text-[10px] font-black text-cyan-500/50 w-6">{idx + 1}</span>
+                <input 
+                  type="text" 
+                  value={item.label} 
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    const itemIdx = newItems.findIndex(i => i.id === item.id);
+                    newItems[itemIdx].label = e.target.value;
+                    handleChange('items', newItems);
+                  }}
+                  className="flex-1 bg-transparent border-none text-sm text-white focus:ring-0"
+                />
+                <button 
+                  onClick={() => {
+                    const newItems = items.filter(i => i.id !== item.id);
+                    handleChange('items', newItems);
+                  }}
+                  className="text-red-500/50 hover:text-red-500 px-2"
+                >&times;</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-dark">
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-dark text-main">
       <div className="w-full max-w-md">
         <h2 className="text-2xl font-bold mb-8 text-center text-cyan-400">{instruction}</h2>
 
@@ -96,7 +160,7 @@ const OrderingTemplate = ({ data, onNext, onResult, isEditMode }) => {
         <div className="mt-8 flex gap-4">
           <button 
             onClick={handleVerify}
-            className="flex-1 py-4 bg-cyan-600 text-white font-black rounded-xl hover:bg-cyan-500 transition-colors uppercase tracking-widest"
+            className="flex-1 py-4 bg-cyan-600 text-white font-black rounded-xl hover:bg-cyan-500 transition-colors uppercase tracking-widest shadow-lg"
           >
             Verificar Orden
           </button>
@@ -104,7 +168,7 @@ const OrderingTemplate = ({ data, onNext, onResult, isEditMode }) => {
           {feedback?.success && (
             <button 
               onClick={onNext}
-              className="px-8 py-4 bg-white text-cyan-900 font-black rounded-xl hover:bg-gray-200 transition-colors uppercase tracking-widest"
+              className="px-8 py-4 bg-white text-cyan-900 font-black rounded-xl hover:bg-gray-200 transition-colors uppercase tracking-widest shadow-lg"
             >
               ➔
             </button>

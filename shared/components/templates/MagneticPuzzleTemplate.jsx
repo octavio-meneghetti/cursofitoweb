@@ -1,71 +1,171 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
-const MagneticPuzzleTemplate = ({ data, onNext, onResult, isEditMode }) => {
-  const { instruction, elements, conceptId } = data;
-  const constraintsRef = useRef(null);
-  const [interacted, setInteracted] = useState(false);
+const MagneticPuzzleTemplate = ({ data, onNext, onResult, isEditMode, onChange }) => {
+  const { instruction, pieces = [], conceptId } = data;
+  const [positions, setPositions] = useState({});
+  const [solved, setSolved] = useState([]);
 
-  // Al soltar una pieza, registramos interacción (al ser sandbox)
-  const handleDragEnd = () => {
-    if (!interacted && onResult && !isEditMode) {
-      setInteracted(true);
-      onResult({ success: true, conceptId, metadata: { experimented: true } });
+  const handleChange = (field, value) => {
+    if (onChange) onChange(field, value);
+  };
+
+  const handleDragEnd = (id, info, targetX, targetY) => {
+    if (isEditMode) return;
+
+    // Simulación de imán: si está cerca del objetivo, se "pega"
+    const distance = Math.sqrt(Math.pow(info.point.x - targetX, 2) + Math.pow(info.point.y - targetY, 2));
+    
+    if (distance < 50) {
+      if (!solved.includes(id)) {
+        const newSolved = [...solved, id];
+        setSolved(newSolved);
+        
+        if (newSolved.length === pieces.length && onResult) {
+          onResult({ success: true, conceptId, metadata: { piecesSolved: newSolved.length } });
+        }
+      }
     }
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 relative bg-dark overflow-hidden">
-      
-      {/* Campo magnético de fondo */}
-      <div className="absolute inset-0 opacity-10" style={{
-        backgroundImage: 'radial-gradient(circle at center, transparent 0%, #06b6d4 100%), repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)'
-      }} />
+  if (isEditMode) {
+    return (
+      <div className="space-y-6 text-main">
+        <label className="block">
+          <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Instrucción</span>
+          <input 
+            type="text" 
+            value={instruction || ''} 
+            onChange={(e) => handleChange('instruction', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+            placeholder="Ej: Une las polaridades del agua..."
+          />
+        </label>
 
-      <div className="w-full max-w-lg z-10 flex flex-col h-full">
-        <h2 className="text-xl font-bold mb-6 text-center text-cyan-400">{instruction}</h2>
-
-        {/* Sandbox Area */}
-        <motion.div 
-          ref={constraintsRef} 
-          className="flex-1 w-full min-h-[50vh] glass-panel border border-cyan-500/20 rounded-3xl relative overflow-hidden flex items-center justify-center"
-        >
-          {elements?.map((el, i) => (
-            <motion.div
-              key={el.id}
-              drag
-              dragConstraints={constraintsRef}
-              dragElastic={0.2}
-              dragMomentum={false}
-              onDragEnd={handleDragEnd}
-              whileHover={{ scale: 1.1 }}
-              whileDrag={{ scale: 1.2, zIndex: 50 }}
-              initial={{ x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 }}
-              className={`absolute w-24 h-24 rounded-full flex items-center justify-center font-bold text-sm text-center shadow-xl cursor-grab active:cursor-grabbing border-4 backdrop-blur-sm ${
-                el.polarity === 'polar' 
-                  ? 'border-cyan-400 bg-cyan-900/60 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.5)]' 
-                  : 'border-yellow-400 bg-yellow-900/60 text-yellow-100 shadow-[0_0_20px_rgba(250,204,21,0.5)]'
-              }`}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-dim text-[10px] uppercase font-bold">Piezas Magnéticas</span>
+            <button 
+              onClick={() => {
+                const newPieces = [...pieces];
+                newPieces.push({ id: Math.random().toString(36).substr(2, 9), label: '🔋 (+)', targetX: 100, targetY: 100, color: '#3b82f6' });
+                handleChange('pieces', newPieces);
+              }}
+              className="text-[10px] bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/30"
             >
-              {el.label}
-            </motion.div>
-          ))}
-          
-          {/* Decorative polar indicators */}
-          <div className="absolute top-4 left-4 text-cyan-500/30 text-4xl font-black">⊕</div>
-          <div className="absolute bottom-4 right-4 text-cyan-500/30 text-4xl font-black">⊖</div>
-        </motion.div>
+              + Añadir Pieza
+            </button>
+          </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-white/40 text-xs mb-4">Experimenta libremente con las fuerzas. Cuando estés listo, avanza.</p>
-          <button 
-            onClick={onNext}
-            className="w-full py-4 bg-cyan-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-cyan-500 shadow-lg shadow-cyan-900/50"
-          >
-            CONTINUAR
-          </button>
+          <div className="space-y-3">
+            {pieces.map((piece, idx) => (
+              <div key={piece.id} className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-3">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={piece.label} 
+                    onChange={(e) => {
+                      const newPieces = [...pieces];
+                      newPieces[idx].label = e.target.value;
+                      handleChange('pieces', newPieces);
+                    }}
+                    className="flex-1 bg-black/40 border border-white/10 p-2 rounded text-sm font-bold"
+                    placeholder="Contenido/Icono"
+                  />
+                  <input 
+                    type="text" 
+                    value={piece.color} 
+                    onChange={(e) => {
+                      const newPieces = [...pieces];
+                      newPieces[idx].color = e.target.value;
+                      handleChange('pieces', newPieces);
+                    }}
+                    className="w-20 bg-black/40 border border-white/10 p-2 rounded text-[10px]"
+                    placeholder="Color"
+                  />
+                  <button 
+                    onClick={() => {
+                      const newPieces = pieces.filter((_, i) => i !== idx);
+                      handleChange('pieces', newPieces);
+                    }}
+                    className="text-red-500/50 hover:text-red-500 px-2"
+                  >&times;</button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <p className="text-[9px] text-white/30 italic col-span-2">Ubicación del objetivo (X/Y en px relativo al centro)</p>
+                  <input 
+                    type="number" 
+                    value={piece.targetX} 
+                    onChange={(e) => {
+                        const newPieces = [...pieces];
+                        newPieces[idx].targetX = parseInt(e.target.value);
+                        handleChange('pieces', newPieces);
+                    }}
+                    className="bg-black/40 border border-white/10 p-2 rounded text-xs"
+                    placeholder="X Objetivo"
+                  />
+                  <input 
+                    type="number" 
+                    value={piece.targetY} 
+                    onChange={(e) => {
+                        const newPieces = [...pieces];
+                        newPieces[idx].targetY = parseInt(e.target.value);
+                        handleChange('pieces', newPieces);
+                    }}
+                    className="bg-black/40 border border-white/10 p-2 rounded text-xs"
+                    placeholder="Y Objetivo"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#05070a] text-white">
+      <h2 className="text-2xl font-bold mb-12 text-indigo-400 text-center">{instruction}</h2>
+      
+      <div className="relative w-full max-w-sm h-96 border-2 border-indigo-500/20 rounded-3xl bg-indigo-950/10 shadow-inner overflow-hidden">
+        {/* Marcadores de objetivo */}
+        {pieces.map(piece => (
+          <div 
+            key={`target-${piece.id}`}
+            className="absolute w-16 h-16 -ml-8 -mt-8 border-2 border-dashed border-indigo-500/30 rounded-full flex items-center justify-center"
+            style={{ left: `${piece.targetX}px`, top: `${piece.targetY}px` }}
+          >
+            <div className="w-1 h-1 bg-indigo-500/50 rounded-full" />
+          </div>
+        ))}
+
+        {/* Piezas móviles */}
+        {pieces.map(piece => (
+          <motion.div
+            key={piece.id}
+            drag
+            dragConstraints={{ top: 0, left: 0, right: 300, bottom: 300 }}
+            onDragEnd={(e, info) => handleDragEnd(piece.id, info, piece.targetX, piece.targetY)}
+            animate={solved.includes(piece.id) ? { left: piece.targetX, top: piece.targetY, scale: 1.1 } : {}}
+            className={`absolute w-16 h-16 -ml-8 -mt-8 rounded-full flex items-center justify-center font-bold text-2xl shadow-xl cursor-grab active:cursor-grabbing z-20 ${solved.includes(piece.id) ? 'shadow-[0_0_20px_white]' : ''}`}
+            style={{ backgroundColor: piece.color, left: solved.includes(piece.id) ? piece.targetX : '50%', top: solved.includes(piece.id) ? piece.targetY : '80%' }}
+          >
+            {piece.label}
+          </motion.div>
+        ))}
+      </div>
+
+      {solved.length === pieces.length && (
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={onNext}
+          className="mt-12 px-12 py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg uppercase tracking-widest"
+        >
+          ¡Enlace Completo!
+        </motion.button>
+      )}
     </div>
   );
 };

@@ -21,6 +21,8 @@ import MissionActionTemplate from './templates/MissionActionTemplate';
 import BotanicalRecordTemplate from './templates/BotanicalRecordTemplate';
 import QuickBurstQuizTemplate from './templates/QuickBurstQuizTemplate';
 import DecisionGridTemplate from './templates/DecisionGridTemplate';
+import MantraTemplate from './templates/MantraTemplate';
+import LottieDecorator from '@shared-lib/components/LottieDecorator';
 
 const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportResult }) => {
   const [currentScreenIndex, setCurrentScreenIndex] = useState(initialScreenIndex);
@@ -101,19 +103,9 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
           </div>
         );
       case 'T07_REWARD':
-        return (
-          <div className="relative w-full h-full">
-            <RewardTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
-            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-yellow-500 text-black font-bold rounded-full z-50 shadow-2xl uppercase tracking-tighter">Cobrar Recompensa</button>
-          </div>
-        );
+        return <RewardTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
       case 'T08_JOURNAL':
-        return (
-          <div className="relative w-full h-full">
-            <JournalTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />
-            <button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-emerald-500 text-black font-bold rounded-full z-50 shadow-2xl">Guardar Registro</button>
-          </div>
-        );
+        return <JournalTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
       case 'T09_HOTSPOTS':
         return <HotspotTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T10_ORDERING':
@@ -142,6 +134,8 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
         return <QuickBurstQuizTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
       case 'T22_DECISION_GRID':
         return <DecisionGridTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} />;
+      case 'T23_MANTRA':
+        return <MantraTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
       default:
         return <div className="text-white p-10">Plantilla no encontrada: {currentScreen.templateId || currentScreen.template}</div>;
     }
@@ -174,6 +168,14 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
       </button>
 
       {renderScreen()}
+
+      {/* Decoración Lottie */}
+      {currentScreen?.lottie?.url && (
+        <LottieDecorator 
+          url={currentScreen.lottie.url} 
+          config={currentScreen.lottie.config} 
+        />
+      )}
     </div>
   );
 };

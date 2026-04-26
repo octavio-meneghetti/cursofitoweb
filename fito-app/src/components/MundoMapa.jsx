@@ -16,7 +16,8 @@ const ISLANDS = [
   { id: 'fito', title: 'Fitoterapia', icon: '🌿', color: '#10b981', gradient: 'from-emerald-900/40 to-emerald-950/80', description: 'El arte de las plantas' },
   { id: 'bio', title: 'Bioquímica', icon: '🧬', color: '#06b6d4', gradient: 'from-cyan-900/40 to-cyan-950/80', description: 'La ciencia invisible' },
   { id: 'med', title: 'Medicina', icon: '🏥', color: '#f43f5e', gradient: 'from-rose-900/40 to-rose-950/80', description: 'El mapa del cuerpo' },
-  { id: 'auto', title: 'Sustentabilidad', icon: '🌍', color: '#84cc16', gradient: 'from-lime-900/40 to-lime-950/80', description: 'La alianza con la tierra' }
+  { id: 'auto', title: 'Sustentabilidad', icon: '🌍', color: '#84cc16', gradient: 'from-lime-900/40 to-lime-950/80', description: 'La alianza con la tierra' },
+  { id: 'san', title: 'Santuario', icon: '⛩️', color: '#a855f7', gradient: 'from-purple-900/40 to-purple-950/80', description: 'El refugio del alma' }
 ];
 
 const MundoMapa = ({ onSelectZone, onPracticeClick }) => {
@@ -164,7 +165,8 @@ const MundoMapa = ({ onSelectZone, onPracticeClick }) => {
               'herbolaria': 'fito',
               'mensajera': 'bio',
               'medicina': 'med',
-              'guardian': 'auto'
+              'guardian': 'auto',
+              'alumno': 'san'
             };
             
             const islandId = islandIdMap[zoneId];

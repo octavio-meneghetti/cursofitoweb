@@ -18,35 +18,43 @@ import MissionActionTemplate from '@shared/components/templates/MissionActionTem
 import BotanicalRecordTemplate from '@shared/components/templates/BotanicalRecordTemplate';
 import QuickBurstQuizTemplate from '@shared/components/templates/QuickBurstQuizTemplate';
 import DecisionGridTemplate from '@shared/components/templates/DecisionGridTemplate';
+import HotspotTemplate from '@shared/components/templates/HotspotTemplate';
+import OrderingTemplate from '@shared/components/templates/OrderingTemplate';
+import ThermoTemplate from '@shared/components/templates/ThermoTemplate';
+import ScratchRevealTemplate from '@shared/components/templates/ScratchRevealTemplate';
+import MagneticPuzzleTemplate from '@shared/components/templates/MagneticPuzzleTemplate';
+import MantraTemplate from '@shared/components/templates/MantraTemplate';
 import LessonEngine from '@shared/components/LessonEngine';
+import LottieDecorator from '@shared/components/LottieDecorator';
 import '@shared/theme/designSystem.css';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const TEMPLATES = {
-  T01_NARRATIVE: 'Narrativa (Personaje + Texto)',
-  T02_QUIZ_SELECT: 'Quiz (Pregunta + Opciones)',
-  T03_SWIPE_CARDS: 'Triaje (Deslizar Tarjetas)',
-  T04_FLIP_CARDS: 'Flashcards (Cartas Giratorias)',
-  T05_SLIDER: 'Simulador (Deslizador de Variables)',
-  T06_DRAG_MATCH: 'Laboratorio (Fusión de Elementos)',
-  T07_REWARD: 'Medalla Cinemática (Recompensa)',
-  T08_JOURNAL: 'Registro (Selección de Chips)',
-  T09_HOTSPOTS: 'Cartógrafo: Puntos de Interés (Medicina)',
-  T10_ORDERING: 'Ordenamiento: Jerarquías y Procesos',
-  T11_THERMO: 'Termodinámica: Temperatura y Extracción (Bioquímica)',
-  T12_SCRATCH: 'Raspadita: Revelación Oculta (Autosustentabilidad)',
-  T13_MAGNETIC: 'Magnetismo: Polaridad Sandbox (Bioquímica)',
-  T14_INTRO: 'Intro: Narración Cinematográfica (Audio + Subtítulos)',
-  T15_VIDEO: 'Presentación de Video (MP4 + Frase)',
-  T16_STORY_STEPS: 'Storytelling: Diálogos por Pasos (Multipantalla Interna)',
-  T17_STATEMENT: 'Frase Centrada (Minimalista + Animación)',
-  T18_PROMISE_CHECKLIST: 'Hoja de Ruta: Promesa + Objetivos (Auto-check)',
-  T19_MISSION_ACTION: 'Misión: Acción Real (Con Ayuda/Sugerencia)',
-  T20_BOTANICAL_RECORD: 'Registro Botánico: Ficha de 5 Rasgos',
-  T21_QUICK_BURST: 'Quiz Ráfaga: 3 Preguntas Rápidas (Una Pantalla)',
-  T22_DECISION_GRID: 'Misión: Grilla de Decisión Intuitiva'
+  T01_NARRATIVE: 'T01: Texto + Siguiente (Narrativa)',
+  T02_QUIZ: 'T02: Quiz de Opción Múltiple',
+  T03_SWIPE: 'T03: Selección por Deslizamiento (Swipe)',
+  T04_FLIP: 'T04: Cartas Reversibles (Flashcards)',
+  T05_SLIDER: 'T05: Selección por Rango (Slider)',
+  T06_DRAG_MATCH: 'T06: Arrastrar y Soltar (Mortero)',
+  T07_REWARD: 'T07: Medalla y Recompensa',
+  T08_JOURNAL: 'T08: Diario de Reflexión / Escritura',
+  T09_HOTSPOTS: 'T09: Puntos de Interés Interactivos',
+  T10_ORDERING: 'T10: Ordenamiento de Jerarquías',
+  T11_THERMO: 'T11: Termodinámica: Temperatura Ideal',
+  T12_SCRATCH: 'T12: Raspadita: Revelación de Capas',
+  T13_MAGNETIC: 'T13: Magnetismo: Polaridad y Mezclas',
+  T14_INTRO: 'T14: Intro: Narración Cinematográfica',
+  T15_VIDEO: 'T15: Video Presentación (Vertical)',
+  T16_STORYTELLING: 'T16: Storytelling: Pasos de Narrativa',
+  T17_STATEMENT: 'T17: Frase Impacto (Efecto Typewriter)',
+  T18_PROMISE: 'T18: Hoja de Ruta / Promesa (Checklist)',
+  T19_MISSION_ACTION: 'T19: Misión: Acción Real (Con Ayuda/Sugerencia)',
+  T20_BOTANICAL_RECORD: 'T20: Registro Botánico: Ficha de 5 Rasgos',
+  T21_QUICK_BURST: 'T21: Quiz Ráfaga: 3 Preguntas Rápidas (Una Pantalla)',
+  T22_DECISION_GRID: 'T22: Misión: Grilla de Decisión Intuitiva',
+  T23_MANTRA: 'T23: Mantra: Sello de Preguntas de Poder'
 };
 
 const AVATAR_IMAGES = [
@@ -110,10 +118,26 @@ const DEFAULT_DRAG_DATA = {
 };
 
 const DEFAULT_REWARD_DATA = {
-  title: '¡Medalla de Sabiduría!',
+  badgeName: '¡Medalla de Sabiduría!',
+  badgeIcon: '🏆',
   message: 'Has completado el desafío con éxito.',
-  icon: '🏆',
-  accentColor: '#10b981'
+  accentColor: '#FBBF24',
+  badgeSize: 128,
+  mediaUrl: '',
+  mediaType: 'image',
+  mediaSize: 300,
+  particles: true
+};
+
+const DEFAULT_MANTRA_DATA = {
+  questions: ['¿Qué es?', '¿Para qué?', '¿Cómo la voy a usar?'],
+  caption: 'Estas tres preguntas te protegen de la improvisación.',
+  buttonText: 'Hacer la práctica',
+  accentColor: '#ef4444',
+  audioUrl: '',
+  phraseSize: 48,
+  verticalOffset: 0,
+  gap: 40
 };
 
 const DEFAULT_CHECKLIST_DATA = {
@@ -299,6 +323,7 @@ const LevelEditor = () => {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingLottie, setUploadingLottie] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -410,6 +435,7 @@ const LevelEditor = () => {
     else if (newTemplateId === 'T20_BOTANICAL_RECORD') defaultData = { ...DEFAULT_BOTANICAL_DATA };
     else if (newTemplateId === 'T21_QUICK_BURST') defaultData = { ...DEFAULT_BURST_DATA };
     else if (newTemplateId === 'T22_DECISION_GRID') defaultData = { ...DEFAULT_DECISION_GRID_DATA };
+    else if (newTemplateId === 'T23_MANTRA') defaultData = { ...DEFAULT_MANTRA_DATA };
     
     updateCurrentScreen({
       templateId: newTemplateId,
@@ -449,6 +475,32 @@ const LevelEditor = () => {
       alert("Error al subir el audio. Verifica el Storage de Firebase.");
     } finally {
       setUploadingAudio(false);
+    }
+  };
+
+  const handleLottieUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validar que sea un JSON
+    if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+      return alert("Por favor selecciona un archivo .json de Lottie");
+    }
+
+    setUploadingLottie(true);
+    try {
+      const storageRef = ref(storage, `lessons/lottie/${generateId()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      const lottie = currentScreen.lottie || { url: '', config: { x: 50, y: 50, size: 200, rotation: 0, opacity: 1 } };
+      updateCurrentScreen({ lottie: { ...lottie, url: url } });
+      alert('¡Animación Lottie subida con éxito!');
+    } catch (err) {
+      console.error("Error al subir Lottie:", err);
+      alert("Error al subir el archivo JSON.");
+    } finally {
+      setUploadingLottie(false);
     }
   };
 
@@ -541,6 +593,16 @@ const LevelEditor = () => {
         return <RewardTemplate data={screen.data} />;
       case 'T08_JOURNAL':
         return <JournalTemplate data={screen.data} />;
+      case 'T09_HOTSPOTS':
+        return <HotspotTemplate data={screen.data} />;
+      case 'T10_ORDERING':
+        return <OrderingTemplate data={screen.data} />;
+      case 'T11_THERMO':
+        return <ThermoTemplate data={screen.data} />;
+      case 'T12_SCRATCH':
+        return <ScratchRevealTemplate data={screen.data} />;
+      case 'T13_MAGNETIC':
+        return <MagneticPuzzleTemplate data={screen.data} />;
       case 'T14_INTRO':
         return <IntroTemplate data={screen.data} onNext={() => {}} isEditMode={true} />;
       case 'T15_VIDEO':
@@ -559,6 +621,8 @@ const LevelEditor = () => {
         return <QuickBurstQuizTemplate data={screen.data} isEditMode={true} />;
       case 'T22_DECISION_GRID':
         return <DecisionGridTemplate data={screen.data} isEditMode={true} />;
+      case 'T23_MANTRA':
+        return <MantraTemplate data={screen.data} isEditMode={false} />;
       default:
         return <div className="text-dim p-10">Selecciona una plantilla válida.</div>;
     }
@@ -888,6 +952,35 @@ const LevelEditor = () => {
 
             {currentScreen?.templateId === 'T08_JOURNAL' && (
               <JournalTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T09_HOTSPOTS' && (
+              <HotspotTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T10_ORDERING' && (
+              <OrderingTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T11_THERMO' && (
+              <ThermoTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T12_SCRATCH' && (
+              <ScratchRevealTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T13_MAGNETIC' && (
+              <MagneticPuzzleTemplate data={currentScreen.data} onChange={handleChangeData} isEditMode />
+            )}
+
+            {currentScreen?.templateId === 'T23_MANTRA' && (
+              <MantraTemplate 
+                data={currentScreen.data} 
+                onChange={handleChangeData} 
+                onAudioUpload={handleAudioUpload}
+                isEditMode 
+              />
             )}
 
             {/* SECCIÓN: T14_INTRO */}
@@ -2103,6 +2196,140 @@ const LevelEditor = () => {
               </div>
             </div>
 
+            {/* SECCIÓN DE DECORACIÓN LOTTIE */}
+            <div className="pt-8 mt-12 border-t border-white/10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-6 bg-pink-500 rounded-full shadow-[0_0_10px_rgba(236,72,153,0.5)]" />
+                <h3 className="text-lg font-black uppercase tracking-tighter text-white">Decoración Lottie</h3>
+              </div>
+
+              <div className="bg-[#0c0c12] p-6 rounded-3xl border border-white/10 space-y-6">
+                <label className="block">
+                  <span className="text-pink-400/60 text-[10px] uppercase font-black mb-3 block">URL o Archivo JSON Lottie</span>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={currentScreen?.lottie?.url || ''} 
+                      onChange={(e) => {
+                        const lottie = currentScreen.lottie || { url: '', config: { x: 50, y: 50, size: 200, rotation: 0, opacity: 1 } };
+                        updateCurrentScreen({ lottie: { ...lottie, url: e.target.value } });
+                      }}
+                      placeholder="https://.../animation.json"
+                      className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl text-sm text-white font-mono outline-none focus:border-pink-500/50 transition-colors"
+                    />
+                    <label className={`shrink-0 flex items-center justify-center px-6 rounded-2xl border cursor-pointer transition-all ${
+                      uploadingLottie 
+                        ? 'bg-white/5 border-white/10 opacity-50 cursor-wait' 
+                        : 'bg-pink-500/10 border-pink-500/30 hover:bg-pink-500/20 text-pink-400'
+                    }`}>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {uploadingLottie ? 'Subiendo...' : 'Subir JSON'}
+                      </span>
+                      <input type="file" accept=".json,application/json" onChange={handleLottieUpload} className="hidden" disabled={uploadingLottie} />
+                    </label>
+                  </div>
+                </label>
+
+                {currentScreen?.lottie?.url && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-6">
+                      <label className="block">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Posición X ({currentScreen.lottie.config?.x || 50}%)</span>
+                        <input 
+                          type="range" min="0" max="100" step="1"
+                          value={currentScreen.lottie.config?.x || 50}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, x: parseInt(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Posición Y ({currentScreen.lottie.config?.y || 50}%)</span>
+                        <input 
+                          type="range" min="0" max="100" step="1"
+                          value={currentScreen.lottie.config?.y || 50}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, y: parseInt(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <label className="block">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Tamaño ({currentScreen.lottie.config?.size || 200}px)</span>
+                        <input 
+                          type="range" min="50" max="600" step="5"
+                          value={currentScreen.lottie.config?.size || 200}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, size: parseInt(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Rotación ({currentScreen.lottie.config?.rotation || 0}°)</span>
+                        <input 
+                          type="range" min="-180" max="180" step="5"
+                          value={currentScreen.lottie.config?.rotation || 0}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, rotation: parseInt(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                      <label className="flex-1">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Opacidad ({Math.round((currentScreen.lottie.config?.opacity || 1) * 100)}%)</span>
+                        <input 
+                          type="range" min="0" max="1" step="0.1"
+                          value={currentScreen.lottie.config?.opacity || 1}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, opacity: parseFloat(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                      <label className="flex-1">
+                        <span className="text-dim text-[10px] uppercase font-black mb-2 block">Velocidad ({currentScreen.lottie.config?.speed || 1}x)</span>
+                        <input 
+                          type="range" min="0.1" max="3" step="0.1"
+                          value={currentScreen.lottie.config?.speed || 1}
+                          onChange={(e) => {
+                            const config = currentScreen.lottie.config || {};
+                            updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, speed: parseFloat(e.target.value) } } });
+                          }}
+                          className="w-full accent-pink-500 bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </label>
+                      <button 
+                        onClick={() => {
+                          const config = currentScreen.lottie.config || {};
+                          updateCurrentScreen({ lottie: { ...currentScreen.lottie, config: { ...config, flipX: !config.flipX } } });
+                        }}
+                        className={`mt-6 px-4 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${
+                          currentScreen.lottie.config?.flipX 
+                            ? 'bg-pink-500 border-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]' 
+                            : 'bg-white/5 border-white/10 text-white/40'
+                        }`}
+                      >
+                        Espejo X
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="pt-12 pb-20">
               <button 
                 onClick={() => removeScreen(selectedScreenId)}
@@ -2142,6 +2369,14 @@ const LevelEditor = () => {
           <div className="absolute inset-0 overflow-y-auto bg-black">
             {currentScreen ? renderPreview(currentScreen) : (
                 <div className="flex items-center justify-center h-full text-dim text-xs">Selecciona una pantalla</div>
+            )}
+
+            {/* Decoración Lottie en el Simulador */}
+            {currentScreen?.lottie?.url && (
+              <LottieDecorator 
+                url={currentScreen.lottie.url} 
+                config={currentScreen.lottie.config} 
+              />
             )}
           </div>
         </div>

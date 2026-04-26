@@ -8,7 +8,8 @@ const MODULES = [
   { id: 'fito', title: 'Fitoterapia', icon: '🌿', color: '#10b981' },
   { id: 'bio', title: 'Bioquímica', icon: '🧬', color: '#06b6d4' },
   { id: 'med', title: 'Medicina', icon: '🏥', color: '#f43f5e' },
-  { id: 'auto', title: 'Autosustentabilidad', icon: '🌍', color: '#84cc16' }
+  { id: 'auto', title: 'Autosustentabilidad', icon: '🌍', color: '#84cc16' },
+  { id: 'san', title: 'Santuario', icon: '⛩️', color: '#a855f7' }
 ];
 
 const ModuleMapSettings = () => {

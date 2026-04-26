@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const HotspotTemplate = ({ data, onNext, onResult, isEditMode }) => {
-  const { imageUrl, instruction, points, targetHotspot, conceptId } = data;
+const HotspotTemplate = ({ data, onNext, onResult, isEditMode, onChange }) => {
+  const { imageUrl, instruction, points = [], targetHotspot, conceptId } = data;
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  const handleChange = (field, value) => {
+    if (onChange) onChange(field, value);
+  };
 
   const handlePointClick = (point) => {
     if (isEditMode) return;
@@ -25,6 +29,115 @@ const HotspotTemplate = ({ data, onNext, onResult, isEditMode }) => {
     }
   };
 
+  if (isEditMode) {
+    return (
+      <div className="space-y-6 text-main">
+        <label className="block">
+          <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Instrucción</span>
+          <input 
+            type="text" 
+            value={instruction || ''} 
+            onChange={(e) => handleChange('instruction', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+            placeholder="Ej: Encuentra el punto de máxima energía..."
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-dim text-[10px] uppercase font-bold mb-2 block">Imagen del Mapa</span>
+          <input 
+            type="text" 
+            value={imageUrl || ''} 
+            onChange={(e) => handleChange('imageUrl', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main text-xs"
+            placeholder="URL de la imagen..."
+          />
+        </label>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-dim text-[10px] uppercase font-bold">Puntos de Interés</span>
+            <button 
+              onClick={() => {
+                const newPoints = [...points];
+                newPoints.push({ id: Math.random().toString(36).substr(2, 9), x: 50, y: 50, label: 'Nuevo punto', info: 'Descripción...' });
+                handleChange('points', newPoints);
+              }}
+              className="text-[10px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30"
+            >
+              + Añadir Punto
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {points.map((point, idx) => (
+              <div key={point.id} className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-3">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={point.label} 
+                    onChange={(e) => {
+                      const newPoints = [...points];
+                      newPoints[idx].label = e.target.value;
+                      handleChange('points', newPoints);
+                    }}
+                    className="flex-1 bg-black/40 border border-white/10 p-2 rounded text-xs font-bold"
+                    placeholder="Etiqueta"
+                  />
+                  <button 
+                    onClick={() => {
+                      const newPoints = points.filter((_, i) => i !== idx);
+                      handleChange('points', newPoints);
+                    }}
+                    className="text-red-500/50 hover:text-red-500 px-2"
+                  >&times;</button>
+                </div>
+                <textarea 
+                  value={point.info} 
+                  onChange={(e) => {
+                    const newPoints = [...points];
+                    newPoints[idx].info = e.target.value;
+                    handleChange('points', newPoints);
+                  }}
+                  className="w-full bg-black/40 border border-white/10 p-2 rounded text-[10px]"
+                  placeholder="Información que aparece al tocar..."
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-[9px] text-dim uppercase block mb-1">Pos X ({point.x}%)</span>
+                    <input type="range" min="0" max="100" value={point.x} onChange={(e) => {
+                      const newPoints = [...points];
+                      newPoints[idx].x = parseInt(e.target.value);
+                      handleChange('points', newPoints);
+                    }} className="w-full accent-emerald-500" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-dim uppercase block mb-1">Pos Y ({point.y}%)</span>
+                    <input type="range" min="0" max="100" value={point.y} onChange={(e) => {
+                      const newPoints = [...points];
+                      newPoints[idx].y = parseInt(e.target.value);
+                      handleChange('points', newPoints);
+                    }} className="w-full accent-emerald-500" />
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name={`target-${data.id || 'current'}`}
+                    checked={targetHotspot === point.id}
+                    onChange={() => handleChange('targetHotspot', point.id)}
+                    className="w-4 h-4 accent-emerald-500"
+                  />
+                  <span className="text-[10px] uppercase font-bold text-emerald-400">Es el objetivo correcto</span>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 relative bg-dark">
       <div className="w-full max-w-2xl">
@@ -33,10 +146,8 @@ const HotspotTemplate = ({ data, onNext, onResult, isEditMode }) => {
         <div className="relative w-full aspect-square md:aspect-video rounded-3xl overflow-hidden glass-panel border border-white/10 group">
           <img src={imageUrl} alt="Map" className="w-full h-full object-cover" />
           
-          {/* Overlay oscuro para contrastar si no se ha encontrado */}
           <div className={`absolute inset-0 bg-black/40 transition-opacity duration-1000 ${success ? 'opacity-0' : 'opacity-100'}`} />
 
-          {/* Hotspots */}
           {points?.map((point) => (
             <button
               key={point.id}
@@ -48,7 +159,6 @@ const HotspotTemplate = ({ data, onNext, onResult, isEditMode }) => {
             </button>
           ))}
 
-          {/* Info Popup */}
           <AnimatePresence>
             {selectedPoint && (
               <motion.div
