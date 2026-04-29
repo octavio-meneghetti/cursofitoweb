@@ -24,11 +24,17 @@ import DecisionGridTemplate from './templates/DecisionGridTemplate';
 import MantraTemplate from './templates/MantraTemplate';
 import LottieDecorator from '@shared-lib/components/LottieDecorator';
 
-const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportResult }) => {
+const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportResult, onReward }) => {
+  const visibleScreens = (lesson.screens || []).filter(s => !s.isHidden);
   const [currentScreenIndex, setCurrentScreenIndex] = useState(initialScreenIndex);
-  const currentScreen = lesson.screens[currentScreenIndex];
+  const currentScreen = visibleScreens[currentScreenIndex];
 
   const handleNext = () => {
+    // 1. Reportar Recompensas de la Pantalla Actual (si existen)
+    if (currentScreen.data?.economy && onReward) {
+        onReward(currentScreen.data.economy);
+    }
+
     const nav = currentScreen.navigation;
 
     // Verificar si hay un salto programado
@@ -37,7 +43,7 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
 
       // Si el salto es dentro de la MISMA lección
       if (!lessonId || lessonId === lesson.id) {
-        const targetIndex = lesson.screens.findIndex(s => s.id === screenId);
+        const targetIndex = visibleScreens.findIndex(s => s.id === screenId);
         if (targetIndex !== -1) {
           setCurrentScreenIndex(targetIndex);
           return;
@@ -47,7 +53,8 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
         if (onExit) {
           onExit({ 
             finished: true, 
-            jumpTo: nav.jumpTarget 
+            jumpTo: nav.jumpTarget,
+            lessonCompleted: true
           });
         }
         return;
@@ -55,32 +62,33 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
     }
 
     // Comportamiento secuencial normal
-    if (currentScreenIndex < lesson.screens.length - 1) {
+    if (currentScreenIndex < visibleScreens.length - 1) {
       setCurrentScreenIndex(currentScreenIndex + 1);
     } else {
       if (!onReportResult) {
         alert("¡Lección completada! (Modo Vista Previa)");
       }
-      onExit && onExit();
+      onExit && onExit({ finished: true, lessonCompleted: true });
     }
   };
 
   const handleResult = ({ success, conceptId, metadata }) => {
-    if (onReportResult && user && conceptId) {
+    // SOLO reportar si la pantalla está marcada como evaluable en el editor
+    if (currentScreen.isEvaluated && onReportResult && user && conceptId) {
       onReportResult(user.uid, conceptId, success, metadata);
     }
   };
 
   const renderScreen = () => {
-    if (!currentScreen) return <div className="text-white p-10">Cargando...</div>;
+    if (!currentScreen) return <div className="text-white p-10">Finalizando...</div>;
 
     switch (currentScreen.templateId || currentScreen.template) {
       case 'T01_NARRATIVE':
         return <NarrativeTemplate data={currentScreen.data} onNext={handleNext} />;
       case 'T02_QUIZ_SELECT':
-        return <QuizTemplate data={currentScreen} onNext={handleNext} onResult={handleResult} />;
+        return <QuizTemplate data={currentScreen} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
       case 'T03_SWIPE_CARDS':
-        return <SwipeTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <SwipeTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T04_FLIP_CARDS':
         return (
           <div className="relative w-full h-full">
@@ -105,17 +113,17 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
       case 'T07_REWARD':
         return <RewardTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
       case 'T08_JOURNAL':
-        return <JournalTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
+        return <JournalTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T09_HOTSPOTS':
-        return <HotspotTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <HotspotTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T10_ORDERING':
-        return <OrderingTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <OrderingTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T11_THERMO':
-        return <ThermoTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <ThermoTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T12_SCRATCH':
-        return <ScratchRevealTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <ScratchRevealTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T13_MAGNETIC':
-        return <MagneticPuzzleTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
+        return <MagneticPuzzleTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} isEditMode={false} />;
       case 'T14_INTRO':
         return <IntroTemplate data={currentScreen.data} onNext={handleNext} />;
       case 'T15_VIDEO':
@@ -133,7 +141,7 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
       case 'T21_QUICK_BURST':
         return <QuickBurstQuizTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
       case 'T22_DECISION_GRID':
-        return <DecisionGridTemplate data={currentScreen.data} onNext={handleNext} onResult={handleResult} />;
+        return <DecisionGridTemplate data={currentScreen.data} conceptId={currentScreen.conceptId} onNext={handleNext} onResult={handleResult} />;
       case 'T23_MANTRA':
         return <MantraTemplate data={currentScreen.data} onNext={handleNext} isEditMode={false} />;
       default:
@@ -147,7 +155,7 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
       <div className="fixed top-0 left-0 w-full h-1 bg-white/5 z-50">
         <div 
           className="h-full bg-emerald-500 transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
-          style={{ width: `${((currentScreenIndex + 1) / lesson.screens.length) * 100}%` }}
+          style={{ width: `${((currentScreenIndex + 1) / visibleScreens.length) * 100}%` }}
         />
         
         {/* Título de la Pantalla Actual */}
@@ -167,7 +175,9 @@ const LessonEngine = ({ lesson, onExit, user, initialScreenIndex = 0, onReportRe
         <span className="text-xl">✕</span>
       </button>
 
-      {renderScreen()}
+      <div key={currentScreenIndex} className="w-full h-full">
+        {renderScreen()}
+      </div>
 
       {/* Decoración Lottie */}
       {currentScreen?.lottie?.url && (

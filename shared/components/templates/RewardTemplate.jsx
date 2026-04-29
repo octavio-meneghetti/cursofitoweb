@@ -8,6 +8,7 @@ const RewardTemplate = ({ data, onNext, onChange, isEditMode }) => {
 
   const {
     badgeName = '¡Logro Desbloqueado!',
+    badgeId = '',
     badgeIcon = '🏆',
     message = '¡Excelente trabajo! Has completado este desafío.',
     particles = true,
@@ -42,6 +43,17 @@ const RewardTemplate = ({ data, onNext, onChange, isEditMode }) => {
               className="w-full bg-black/40 border border-white/10 p-2 rounded text-sm text-white text-center text-xl" 
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] uppercase font-black text-purple-400 mb-1">ID Técnico de la Medalla (Para Desbloqueos)</label>
+          <input 
+            type="text" 
+            value={badgeId} 
+            onChange={e => handleChange('badgeId', e.target.value)} 
+            className="w-full bg-black/40 border border-purple-500/30 p-2 rounded text-xs text-white font-mono" 
+            placeholder="Ej: fito_experto (Debe coincidir con el requisito de la biblioteca)" 
+          />
         </div>
 
         <div>

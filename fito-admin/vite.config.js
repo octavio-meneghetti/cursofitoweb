@@ -11,7 +11,7 @@ export default defineConfig({
       '@student': path.resolve(__dirname, '../fito-app/src'),
       '@shared-lib': path.resolve(__dirname, '../shared'),
     },
-    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion'],
+    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion', 'lottie-react'],
   },
   server: {
     fs: {

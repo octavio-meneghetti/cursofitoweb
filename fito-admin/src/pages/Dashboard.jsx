@@ -39,10 +39,34 @@ const Dashboard = () => {
             Configurar Bloques 🧩
           </button>
           <button 
+            onClick={() => navigate('/resources')}
+            className="px-6 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-300 font-black uppercase tracking-[0.2em] rounded-xl hover:bg-purple-500/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Gestor de Saberes 📚
+          </button>
+          <button 
+            onClick={() => navigate('/economy')}
+            className="px-6 py-3 bg-amber-500/10 border border-amber-500/20 text-amber-300 font-black uppercase tracking-[0.2em] rounded-xl hover:bg-amber-500/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Economía Vital 🔋
+          </button>
+          <button 
             onClick={() => navigate('/student-preview')}
             className="px-6 py-3 bg-emerald-500 text-black font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition-all text-xs"
           >
             Ver App Alumno 🌿
+          </button>
+          <button 
+            onClick={() => navigate('/settings')}
+            className="px-6 py-3 bg-white/10 border border-white/20 text-white font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Configuración Global ⚙️
+          </button>
+          <button 
+            onClick={() => navigate('/analytics')}
+            className="px-6 py-3 bg-blue-500 text-white font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 active:scale-95 transition-all text-xs"
+          >
+            Alumnos & Analíticas 📊
           </button>
         </div>
       </header>

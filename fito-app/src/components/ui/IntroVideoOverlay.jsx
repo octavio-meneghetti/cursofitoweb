@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const IntroVideoOverlay = ({ onVideoEnd }) => {
+const IntroVideoOverlay = ({ onVideoEnd, videoUrl: propVideoUrl }) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [videoUrl, setVideoUrl] = useState(null);
   const videoRef = useRef(null);
 
-  const STORAGE_URL = "https://firebasestorage.googleapis.com/v0/b/cursofitoweb.firebasestorage.app/o/Introcursoweb.mp4?alt=media&token=b0078a71-af2a-41d2-9336-caec5dd7eb05";
+  const STORAGE_URL = propVideoUrl || "https://firebasestorage.googleapis.com/v0/b/cursofitoweb.firebasestorage.app/o/Introcursoweb.mp4?alt=media&token=b0078a71-af2a-41d2-9336-caec5dd7eb05";
 
   useEffect(() => {
     const safetyTimeout = setTimeout(() => {

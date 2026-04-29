@@ -5,8 +5,12 @@ import { masteryService } from '../lib/masteryService';
 import QuizTemplate from './templates/QuizTemplate';
 import DragMatchTemplate from './templates/DragMatchTemplate';
 import SwipeTemplate from './templates/SwipeTemplate';
+import MissionActionTemplate from './templates/MissionActionTemplate';
+import BotanicalRecordTemplate from './templates/BotanicalRecordTemplate';
+import QuickBurstQuizTemplate from './templates/QuickBurstQuizTemplate';
+import DecisionGridTemplate from './templates/DecisionGridTemplate';
 
-const PracticeEngine = ({ user, onExit }) => {
+const PracticeEngine = ({ user, onExit, onReward }) => {
   const [loading, setLoading] = useState(true);
   const [sessionScreens, setSessionScreens] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -29,19 +33,37 @@ const PracticeEngine = ({ user, onExit }) => {
         return;
       }
 
-      // 2. Buscar pantallas que correspondan a esos conceptos
-      // Nota: En un sistema real, tendríamos una tabla de 'conceptos' o 'banco de preguntas'.
-      // Aquí buscaremos en la colección 'lessons' pantallas que tengan ese conceptId.
+      // 2. Mapeo de conceptos por defecto a tipos de plantilla
+      const defaultMappings = {
+        'mission_action': 'T19_MISSION_ACTION',
+        'botanical_record': 'T20_BOTANICAL_RECORD',
+        'quick_burst': 'T21_QUICK_BURST',
+        'decision_grid': 'T22_DECISION_GRID'
+      };
+
+      // 3. Buscar pantallas que correspondan a esos conceptos
       const screensFound = [];
       const lessonsSnap = await getDocs(collection(db, 'lessons'));
       const allLessons = lessonsSnap.docs.map(d => d.data());
 
       for (const concept of concepts) {
-        // Buscamos en todas las lecciones una pantalla con este conceptId
         let found = false;
+        const targetTemplate = defaultMappings[concept.conceptId];
+
         for (const lesson of allLessons) {
           if (lesson.screens) {
-            const screen = lesson.screens.find(s => s.data?.conceptId === concept.conceptId || s.conceptId === concept.conceptId);
+            const screen = lesson.screens.find(s => {
+              // Coincidencia exacta por ID
+              if (s.conceptId === concept.conceptId || s.data?.conceptId === concept.conceptId) return true;
+              
+              // Coincidencia inteligente por tipo de plantilla (si no tiene ID puesto)
+              if (targetTemplate && (s.templateId === targetTemplate || s.template === targetTemplate)) {
+                if (!s.conceptId && !s.data?.conceptId) return true;
+              }
+
+              return false;
+            });
+
             if (screen) {
               screensFound.push({
                 ...screen,
@@ -67,7 +89,8 @@ const PracticeEngine = ({ user, onExit }) => {
     if (currentIdx < sessionScreens.length - 1) {
       setCurrentIdx(currentIdx + 1);
     } else {
-      alert("¡Repaso completado! Tu maestría ha aumentado.");
+      if (onReward) onReward({ energy: 1 });
+      alert("¡Repaso completado! Tu energía vital ha aumentado (🔋 +1 ATP).");
       onExit();
     }
   };
@@ -115,6 +138,14 @@ const PracticeEngine = ({ user, onExit }) => {
         return <SwipeTemplate {...commonProps} />;
       case 'T06_DRAG_MATCH':
         return <DragMatchTemplate {...commonProps} />;
+      case 'T19_MISSION_ACTION':
+        return <MissionActionTemplate {...commonProps} />;
+      case 'T20_BOTANICAL_RECORD':
+        return <BotanicalRecordTemplate {...commonProps} />;
+      case 'T21_QUICK_BURST':
+        return <QuickBurstQuizTemplate {...commonProps} />;
+      case 'T22_DECISION_GRID':
+        return <DecisionGridTemplate {...commonProps} />;
       default:
         // Fallback simple si no conocemos la plantilla o es narrativa
         return (

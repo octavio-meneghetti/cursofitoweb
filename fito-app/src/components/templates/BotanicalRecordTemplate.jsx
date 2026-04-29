@@ -39,8 +39,20 @@ const BotanicalRecordTemplate = ({ data, onNext, onResult, conceptId, isEditMode
         success: true, 
         conceptId: conceptId || 'botanical_record',
         metadata: { 
-          selections,
-          notes: sanitizeText(extraNotes)
+          isJournalEntry: true,
+          journalData: {
+            title: title || 'Registro Botánico',
+            entries: [
+              ...traits.map(t => ({
+                question: t.label,
+                answer: selections[t.id] || 'No especificado'
+              })),
+              {
+                question: 'Notas Adicionales',
+                answer: sanitizeText(extraNotes) || 'Sin notas'
+              }
+            ]
+          }
         } 
       });
     }

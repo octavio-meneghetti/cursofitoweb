@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const T22_DECISION_GRID = ({ data, onNext, onResult, isEditMode = false }) => {
+const T22_DECISION_GRID = ({ data, conceptId, onNext, onResult, isEditMode = false }) => {
   const {
     title = 'Misión: Toma una Decisión',
     instruction = 'Elige la opción que más resuene contigo ahora.',
@@ -35,15 +35,17 @@ const T22_DECISION_GRID = ({ data, onNext, onResult, isEditMode = false }) => {
     setTimeout(() => {
       if (onResult) {
         onResult({ 
-          success: true, 
+          success: true,
+          conceptId: conceptId || 'decision_grid', 
           metadata: { 
             decision: selectedId,
             choiceLabel: options.find(o => o.id === selectedId)?.label 
           } 
         });
       }
+      setIsSubmitting(false);
       onNext();
-    }, 600);
+    }, 800);
   };
 
   const styles = {

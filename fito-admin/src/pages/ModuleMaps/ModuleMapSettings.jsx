@@ -4,6 +4,11 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/**
+ * ModuleMapSettings (Admin): Editor de Mapas de Islas y Santuario.
+ * Layout ultra-optimizado para evitar que el mapa desplace los controles.
+ */
+
 const MODULES = [
   { id: 'fito', title: 'Fitoterapia', icon: '🌿', color: '#10b981' },
   { id: 'bio', title: 'Bioquímica', icon: '🧬', color: '#06b6d4' },
@@ -12,10 +17,18 @@ const MODULES = [
   { id: 'san', title: 'Santuario', icon: '⛩️', color: '#a855f7' }
 ];
 
+const ACTION_TYPES = [
+  { id: 'OPEN_LESSON', label: '📖 Abrir Lección/Temario' },
+  { id: 'OPEN_LIBRARY', label: '📚 Abrir Biblioteca' },
+  { id: 'OPEN_KITCHEN', label: '🍳 Abrir Cocina' },
+  { id: 'OPEN_BED', label: '🛌 Abrir Habitación (Energía)' },
+  { id: 'OPEN_PRACTICE', label: '⚔️ Abrir Prácticas' }
+];
+
 const ModuleMapSettings = () => {
   const [selectedModule, setSelectedModule] = useState(MODULES[0].id);
   const [mapConfig, setMapConfig] = useState(null);
-  const [selectedBlock, setSelectedBlock] = useState(1);
+  const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
@@ -30,25 +43,27 @@ const ModuleMapSettings = () => {
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
+        // Normalizar bloques para asegurar que todos tengan un ID (especialmente datos antiguos)
+        const normalizedBlocks = {};
+        if (data.blocks) {
+          Object.entries(data.blocks).forEach(([key, block]) => {
+            normalizedBlocks[key] = { ...block, id: block.id || key };
+          });
+        }
+
         setMapConfig({
           imageUrl: data.imageUrl || 'https://placehold.co/1000x1777/0a0a0f/10b981?text=Sube+Mapa+Módulo',
-          blocks: data.blocks || {},
-          weeks: data.weeks || {}
+          blocks: normalizedBlocks
         });
       } else {
         setMapConfig({
           imageUrl: 'https://placehold.co/1000x1777/0a0a0f/10b981?text=Sube+Mapa+Módulo',
-          blocks: {},
-          weeks: {}
+          blocks: {}
         });
       }
     } catch (err) {
       console.error("Error fetching config:", err);
-      // Initialize with default on error
-      setMapConfig({
-        imageUrl: 'https://placehold.co/1000x1777/0a0a0f/10b981?text=Sube+Mapa+Módulo',
-        blocks: {}
-      });
+      setMapConfig({ imageUrl: '', blocks: {} });
     } finally {
       setLoading(false);
     }
@@ -57,326 +72,318 @@ const ModuleMapSettings = () => {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     try {
-      const storageRef = ref(storage, `maps/modules/${selectedModule}/background.png`);
+      const storageRef = ref(storage, `maps/modules/${selectedModule}/background_${Date.now()}.png`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      
       setMapConfig(prev => ({ ...prev, imageUrl: url }));
-      alert('¡Imagen de módulo subida! Ahora ubica los 10 bloques.');
     } catch (err) {
       console.error("Error al subir:", err);
-      alert("Error al subir la imagen.");
     }
     setUploading(false);
   };
 
-  const handleMapClick = (e) => {
-    if (!selectedBlock) return;
+  const addNewBlock = () => {
+    const id = Date.now().toString();
+    setMapConfig(prev => ({
+      ...prev,
+      blocks: {
+        ...prev.blocks,
+        [id]: {
+          id,
+          name: 'Nuevo Punto',
+          x: 50,
+          y: 50,
+          icon: '✨',
+          color: MODULES.find(m => m.id === selectedModule)?.color || '#10b981',
+          effectType: 'portal',
+          actionType: selectedModule === 'san' ? 'OPEN_LIBRARY' : 'OPEN_LESSON',
+          markerSize: 50,
+          markerIconSize: 24,
+          markerBgColor: 'rgba(0,0,0,0.8)',
+          weeks: {}
+        }
+      }
+    }));
+    setSelectedBlockId(id);
+  };
 
+  const deleteBlock = (id) => {
+    if (!window.confirm("¿Eliminar este punto de interés?")) return;
+    setMapConfig(prev => {
+      const newBlocks = { ...prev.blocks };
+      delete newBlocks[id];
+      return { ...prev, blocks: newBlocks };
+    });
+    setSelectedBlockId(null);
+  };
+
+  const handleMapClick = (e) => {
+    if (!selectedBlockId) return;
     const rect = e.target.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    setMapConfig(prev => {
-      const currentBlocks = prev?.blocks || {};
-      const blockData = currentBlocks[selectedBlock] || {};
-      
-      return {
-        ...prev,
-        blocks: {
-          ...currentBlocks,
-          [selectedBlock]: { 
-            ...blockData,
-            x: Math.round(x), 
-            y: Math.round(y),
-            icon: blockData.icon || '✨',
-            effectType: blockData.effectType || 'portal',
-            color: blockData.color || MODULES.find(m => m.id === selectedModule)?.color || '#10b981'
-          }
+    setMapConfig(prev => ({
+      ...prev,
+      blocks: {
+        ...prev.blocks,
+        [selectedBlockId]: { 
+          ...prev.blocks[selectedBlockId], 
+          x: Math.round(x * 10) / 10, 
+          y: Math.round(y * 10) / 10 
         }
-      };
+      }
+    }));
+  };
+
+  const updateBlock = (id, field, value) => {
+    setMapConfig(prev => ({
+      ...prev,
+      blocks: {
+        ...prev.blocks,
+        [id]: { ...prev.blocks[id], [field]: value }
+      }
+    }));
+  };
+
+  const updateWeek = (blockId, weekNum, title) => {
+    setMapConfig(prev => {
+        const block = prev.blocks[blockId];
+        return {
+            ...prev,
+            blocks: {
+                ...prev.blocks,
+                [blockId]: {
+                    ...block,
+                    weeks: { ...block.weeks, [weekNum]: title }
+                }
+            }
+        };
     });
   };
 
   const saveConfig = async () => {
     setLoading(true);
     await setDoc(doc(db, 'config', `module_map_${selectedModule}`), mapConfig);
-    alert(`¡Mapa de ${selectedModule.toUpperCase()} actualizado! 🚀`);
+    alert(`¡Configuración de ${selectedModule.toUpperCase()} guardada!`);
     setLoading(false);
   };
 
-  if (loading && !mapConfig) return <div className="p-10 text-white">Cargando Mapa...</div>;
+  if (loading && !mapConfig) return <div className="h-screen flex items-center justify-center bg-dark text-emerald-500 font-black animate-pulse uppercase tracking-[0.5em]">Sincronizando...</div>;
 
   return (
-    <div className="min-h-screen p-10 bg-dark text-main font-sans">
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Editor de Mapas de Módulo</h1>
-          <p className="text-white/40 text-sm uppercase tracking-widest">Configura los 10 bloques para cada isla</p>
+    <div className="h-screen flex flex-col bg-[#050505] text-main font-sans overflow-hidden">
+      
+      {/* HEADER COMPACTO */}
+      <header className="p-4 bg-black/40 border-b border-white/5 flex items-center justify-between z-50">
+        <div className="flex items-center gap-6">
+            <div>
+                <h1 className="text-xl font-black text-white uppercase tracking-tighter leading-none">Editor de Islas</h1>
+                <p className="text-white/20 text-[8px] uppercase tracking-widest font-bold">Configuración de Puntos Interactivos</p>
+            </div>
+
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 ml-4">
+                {MODULES.map(m => (
+                <button
+                    key={m.id}
+                    onClick={() => setSelectedModule(m.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${selectedModule === m.id ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                >
+                    {m.icon} {m.title}
+                </button>
+                ))}
+            </div>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-          <div className="flex bg-black/40 p-1 rounded-2xl border border-white/10">
-            {MODULES.map(m => (
-              <button
-                key={m.id}
-                onClick={() => setSelectedModule(m.id)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedModule === m.id ? 'bg-emerald-500 text-black' : 'text-white/40 hover:text-white'}`}
-              >
-                {m.title}
-              </button>
-            ))}
-          </div>
-          
-          <label className="cursor-pointer bg-white/10 text-white font-bold px-6 py-3 rounded-full hover:bg-white/20 transition-all uppercase tracking-widest text-[10px] flex items-center">
-            {uploading ? 'Subiendo...' : '📁 Subir Mapa'}
-            <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
-          </label>
-          
-          <button 
-            onClick={saveConfig}
-            className="bg-emerald-500 text-black font-black px-8 py-3 rounded-full hover:bg-emerald-400 transition-all uppercase tracking-widest text-[10px] shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-          >
-            Guardar Cambios
-          </button>
+        <div className="flex items-center gap-3">
+            <label className="cursor-pointer bg-white/5 text-white/60 font-black px-4 py-2 rounded-xl hover:bg-white/10 transition-all uppercase tracking-widest text-[9px] flex items-center border border-white/5">
+                {uploading ? 'SUBIENDO...' : '📁 CAMBIAR MAPA'}
+                <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
+            </label>
+            
+            <button 
+                onClick={saveConfig}
+                className="bg-emerald-500 text-black font-black px-6 py-2.5 rounded-xl hover:bg-emerald-400 transition-all uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-500/20"
+            >
+                GUARDAR CAMBIOS
+            </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Panel de Bloques */}
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-          <h2 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Seleccionar Bloque (1-10)</h2>
-          
-          {[...Array(10)].map((_, i) => {
-            const num = i + 1;
-            const block = mapConfig.blocks[num];
-            return (
-              <div key={num} className={`p-4 rounded-2xl border-2 transition-all ${selectedBlock === num ? 'bg-emerald-500/10 border-emerald-500' : 'bg-black/40 border-white/5 opacity-60'}`}>
-                <button
-                  onClick={() => setSelectedBlock(num)}
-                  className="w-full flex items-center justify-between mb-3"
-                >
-                  <span className="font-black text-white uppercase text-xs">Bloque {num}</span>
-                  {block && <span className="text-[9px] font-mono text-emerald-400">{block.x}% : {block.y}%</span>}
-                </button>
+      {/* ÁREA DE TRABAJO EN DOS COLUMNAS FIJAS */}
+      <main className="flex-1 flex overflow-hidden">
+        
+        {/* PANEL DE CONTROL (Izquierda - Ancho Fijo) */}
+        <aside className="w-[380px] h-full overflow-y-auto p-4 bg-black/20 border-r border-white/5 custom-scrollbar">
+            <button 
+                onClick={addNewBlock}
+                className="w-full py-4 border-2 border-dashed border-emerald-500/30 rounded-2xl text-emerald-400 font-black uppercase tracking-widest text-[9px] hover:bg-emerald-500/10 hover:border-emerald-500 transition-all mb-4"
+            >
+                + AGREGAR PUNTO DE INTERÉS
+            </button>
 
-                {selectedBlock === num && (
-                  <div className="space-y-3 pt-3 border-t border-white/10">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[8px] text-emerald-400 uppercase font-black">Nombre del Bloque</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ej: Introducción a la Fito"
-                        className="bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
-                        value={block?.name || ''}
-                        onChange={(e) => setMapConfig(prev => ({
-                          ...prev,
-                          blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], name: e.target.value } }
-                        }))}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Icono (Emoji)"
-                          className="bg-black border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                          value={block?.icon || ''}
-                          onChange={(e) => setMapConfig(prev => ({
-                            ...prev,
-                            blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], icon: e.target.value } }
-                          }))}
-                        />
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] text-white/40 uppercase font-black">Portal/Brillo</label>
-                          <input 
-                            type="color" 
-                            className="w-full h-8 bg-black border border-white/10 rounded-lg cursor-pointer"
-                            value={block?.color || '#10b981'}
-                            onChange={(e) => setMapConfig(prev => ({
-                              ...prev,
-                              blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], color: e.target.value } }
-                            }))}
-                          />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] text-white/40 uppercase font-black">Fondo Icono</label>
-                          <input 
-                            type="text" 
-                            placeholder="Ej: transparent o #hex"
-                            className="w-full bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2 text-[10px] text-white focus:border-emerald-500 outline-none transition-all"
-                            value={block?.markerBgColor || ''}
-                            onChange={(e) => setMapConfig(prev => ({
-                              ...prev,
-                              blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], markerBgColor: e.target.value } }
-                            }))}
-                          />
-                          <div className="flex gap-1 mt-1">
-                            <button onClick={() => setMapConfig(prev => ({...prev, blocks: {...prev.blocks, [num]: {...prev.blocks[num], markerBgColor: 'transparent'}}}))} className="text-[7px] bg-white/5 hover:bg-white/10 px-1 py-0.5 rounded border border-white/10 text-white/60">🚫 Quitar</button>
-                            <button onClick={() => setMapConfig(prev => ({...prev, blocks: {...prev.blocks, [num]: {...prev.blocks[num], markerBgColor: '#000000'}}}))} className="text-[7px] bg-white/5 hover:bg-white/10 px-1 py-0.5 rounded border border-white/10 text-white/60">🌑 Negro</button>
-                            <button onClick={() => setMapConfig(prev => ({...prev, blocks: {...prev.blocks, [num]: {...prev.blocks[num], markerBgColor: 'rgba(0,0,0,0.5)'}}}))} className="text-[7px] bg-white/5 hover:bg-white/10 px-1 py-0.5 rounded border border-white/10 text-white/60">💨 Transp.</button>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[8px] text-white/40 uppercase font-black">Efecto</label>
-                          <select 
-                            className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white uppercase font-black"
-                            value={block?.effectType || 'portal'}
-                            onChange={(e) => setMapConfig(prev => ({
-                              ...prev,
-                              blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], effectType: e.target.value } }
-                            }))}
-                          >
-                            <option value="portal">Portal</option>
-                            <option value="floating">Flotante</option>
-                            <option value="none">Nada</option>
-                          </select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[8px] font-black text-white/40 uppercase">Tamaño Marcador ({block?.markerSize || 50}px)</label>
-                          <input 
-                            type="range" min="30" max="100" 
-                            value={block?.markerSize || 50} 
-                            onChange={(e) => setMapConfig(prev => ({
-                              ...prev,
-                              blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], markerSize: parseInt(e.target.value) } }
-                            }))}
-                            className="w-full accent-emerald-500" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[8px] font-black text-white/40 uppercase">Icono ({block?.markerIconSize || 22}px)</label>
-                          <input 
-                            type="range" min="10" max="60" 
-                            value={block?.markerIconSize || 22} 
-                            onChange={(e) => setMapConfig(prev => ({
-                              ...prev,
-                              blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], markerIconSize: parseInt(e.target.value) } }
-                            }))}
-                            className="w-full accent-emerald-500" 
-                          />
-                        </div>
-                    </div>
-                      
-                    <input 
-                      type="text" 
-                      placeholder="URL Imagen personalizada (opcional)"
-                      className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white"
-                      value={block?.markerUrl || ''}
-                      onChange={(e) => setMapConfig(prev => ({
-                        ...prev,
-                        blocks: { ...prev.blocks, [num]: { ...prev.blocks[num], markerUrl: e.target.value } }
-                      }))}
-                    />
-
-                    {/* Nombres de Semanas Específicas por Bloque */}
-                    <div className="mt-6 pt-6 border-t border-white/10 space-y-3">
-                      <h3 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Temario: Semanas 1-6</h3>
-                      <div className="grid grid-cols-1 gap-2">
-                        {[1, 2, 3, 4, 5, 6].map(weekNum => (
-                          <div key={weekNum} className="flex flex-col gap-1">
-                            <label className="text-[7px] text-white/40 uppercase font-bold">Semana {weekNum}</label>
-                            <input 
-                              type="text" 
-                              placeholder={`Título de la semana...`}
-                              className="bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-emerald-500/50 outline-none transition-all"
-                              value={block?.weeks?.[weekNum] || ''}
-                              onChange={(e) => setMapConfig(prev => ({
-                                ...prev,
-                                blocks: { 
-                                  ...prev.blocks, 
-                                  [num]: { 
-                                    ...prev.blocks[num], 
-                                    weeks: { ...prev.blocks[num]?.weeks, [weekNum]: e.target.value }
-                                  } 
-                                }
-                              }))}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-        </div>
-
-        {/* Editor Visual */}
-        <div className="lg:col-span-3 relative rounded-[2.5rem] overflow-hidden border border-white/10 bg-black/60 shadow-2xl">
-          <div className="relative w-full h-full min-h-[600px] overflow-auto custom-scrollbar">
-            <img 
-              src={mapConfig.imageUrl} 
-              className="w-full h-auto min-w-full block cursor-crosshair"
-              onClick={handleMapClick}
-              alt="Module Map Editor"
-            />
-            
-            {/* Overlay de Bloques */}
-            <div className="absolute inset-0 pointer-events-none">
-              {Object.entries(mapConfig.blocks).map(([num, block]) => (
-                <div
-                  key={num}
-                  className="absolute"
-                  style={{ 
-                    left: `${block.x}%`, 
-                    top: `${block.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  <div className="relative flex flex-col items-center">
-                    {/* Visualización del Efecto Proyectada */}
-                    {block.effectType === 'portal' && (
-                       <div className="portal-ring scale-75" style={{ '--map-ring-color': block.color }}>
-                          <div className="portal-ring-outer" />
-                          <div className="portal-ring-core" />
-                       </div>
-                    )}
-
+            <AnimatePresence mode="popLayout">
+                {Object.entries(mapConfig.blocks).map(([key, block]) => (
                     <motion.div 
-                      animate={block.effectType === 'floating' ? { y: [0, -10, 0] } : {}}
-                      transition={block.effectType === 'floating' ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
-                      className="rounded-full border-2 border-white flex items-center justify-center shadow-2xl relative z-10"
-                      style={{ 
-                        width: `${block.markerSize || 40}px`,
-                        height: `${block.markerSize || 40}px`,
-                        backgroundColor: block.markerBgColor || 'rgba(0,0,0,0.8)',
-                        borderColor: selectedBlock === parseInt(num) ? '#10b981' : 'white',
-                        boxShadow: `0 0 15px ${block.color}55`
-                      }}
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        key={block.id || key} 
+                        className={`p-4 rounded-[1.5rem] border transition-all relative group mb-3 ${selectedBlockId === (block.id || key) ? 'bg-emerald-500/10 border-emerald-500 shadow-xl' : 'bg-white/5 border-white/5'}`}
                     >
-                      {block.markerUrl ? (
-                         <img src={block.markerUrl} className="object-contain" style={{ width: `${block.markerIconSize || 20}px`, height: `${block.markerIconSize || 20}px` }} />
-                      ) : (
-                         <span style={{ fontSize: `${block.markerIconSize || 20}px` }}>{block.icon}</span>
-                      )}
+                        <div className="flex items-center justify-between mb-3">
+                            <button onClick={() => setSelectedBlockId(block.id || key)} className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center text-xl border border-white/5 shadow-inner">{block.icon}</div>
+                                <div className="text-left">
+                                    <h3 className="font-black text-white uppercase text-[10px] tracking-widest">{block.name}</h3>
+                                    <p className="text-[8px] font-mono text-emerald-400/60 uppercase">{block.x}% / {block.y}%</p>
+                                </div>
+                            </button>
+                            <button onClick={() => deleteBlock(block.id || key)} className="text-white/10 hover:text-red-500 transition-colors p-1 text-xs">✕</button>
+                        </div>
+
+                        {selectedBlockId === (block.id || key) && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pt-4 border-t border-white/5">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] text-emerald-400 uppercase font-black ml-1">Nombre / Título</label>
+                                    <input type="text" value={block.name} onChange={(e) => updateBlock(block.id || key, 'name', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[11px] text-white" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] text-emerald-400 uppercase font-black ml-1">Acción</label>
+                                    <select value={block.actionType} onChange={(e) => updateBlock(block.id || key, 'actionType', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white uppercase font-black cursor-pointer outline-none">
+                                        {ACTION_TYPES.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] text-white/30 uppercase font-black ml-1">Icono</label>
+                                        <input type="text" value={block.icon} onChange={(e) => updateBlock(block.id || key, 'icon', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-center" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] text-white/30 uppercase font-black ml-1">Color</label>
+                                        <input type="color" value={block.color} onChange={(e) => updateBlock(block.id || key, 'color', e.target.value)} className="w-full h-8 bg-black border border-white/10 rounded-lg cursor-pointer p-0.5" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[8px] text-white/30 uppercase font-black ml-1">Fondo Icono</label>
+                                    <input type="text" value={block.markerBgColor} onChange={(e) => updateBlock(block.id || key, 'markerBgColor', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white" />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[8px] text-white/30 uppercase font-black ml-1">URL Imagen (Opcional)</label>
+                                    <input type="text" value={block.markerUrl || ''} onChange={(e) => updateBlock(block.id || key, 'markerUrl', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white" />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] text-white/30 uppercase font-black ml-1">Efecto</label>
+                                        <select value={block.effectType} onChange={(e) => updateBlock(block.id || key, 'effectType', e.target.value)} className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-[9px] text-white uppercase font-black">
+                                            <option value="portal">Portal</option>
+                                            <option value="floating">Flotante</option>
+                                            <option value="none">Nada</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[8px] text-white/30 uppercase font-black ml-1">Tamaños</label>
+                                        <div className="flex flex-col gap-1">
+                                            <input type="range" min="30" max="120" value={block.markerSize || 50} onChange={(e) => updateBlock(block.id || key, 'markerSize', parseInt(e.target.value))} className="w-full accent-emerald-500" />
+                                            <input type="range" min="10" max="80" value={block.markerIconSize || 24} onChange={(e) => updateBlock(block.id || key, 'markerIconSize', parseInt(e.target.value))} className="w-full accent-emerald-500" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {block.actionType === 'OPEN_LESSON' && (
+                                    <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+                                        <h4 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Semanas 1-6</h4>
+                                        <div className="grid grid-cols-1 gap-1.5">
+                                            {[1, 2, 3, 4, 5, 6].map(w => (
+                                                <input 
+                                                    key={w}
+                                                    type="text" 
+                                                    placeholder={`Semana ${w}...`}
+                                                    className="bg-black/40 border border-white/5 rounded px-3 py-1.5 text-[9px] text-white focus:border-emerald-500 outline-none"
+                                                    value={block.weeks?.[w] || ''}
+                                                    onChange={(e) => updateWeek(block.id || key, w, e.target.value)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
                     </motion.div>
-                    
-                    <div className="mt-1 bg-black/80 px-2 py-0.5 rounded-md border border-white/10">
-                      <span className="text-[8px] font-black text-white uppercase tracking-tighter italic">B{num}</span>
-                    </div>
-                  </div>
+                ))}
+            </AnimatePresence>
+        </aside>
+
+        {/* ÁREA DEL MAPA (Derecha - Scrollable) */}
+        <section className="flex-1 relative bg-black overflow-auto custom-scrollbar p-10 flex justify-center items-start">
+            <div className="relative inline-block border border-white/10 shadow-2xl rounded-2xl overflow-hidden">
+                <img 
+                    src={mapConfig.imageUrl} 
+                    className="max-w-none h-auto block cursor-crosshair select-none"
+                    onClick={handleMapClick}
+                    style={{ maxHeight: '150vh' }} // Límite de altura para evitar proporciones absurdas
+                    alt="Map Editor"
+                />
+                
+                {/* Overlay de Marcadores */}
+                <div className="absolute inset-0 pointer-events-none">
+                    {Object.values(mapConfig.blocks).map((block) => (
+                        <div
+                            key={block.id}
+                            className="absolute"
+                            style={{ left: `${block.x}%`, top: `${block.y}%`, transform: 'translate(-50%, -50%)' }}
+                        >
+                            <div className="relative flex flex-col items-center">
+                                {block.effectType === 'portal' && (
+                                    <div className="portal-ring scale-75" style={{ '--map-ring-color': block.color }}>
+                                        <div className="portal-ring-outer" />
+                                        <div className="portal-ring-core" />
+                                    </div>
+                                )}
+                                
+                                <motion.div 
+                                    animate={block.effectType === 'floating' ? { y: [0, -10, 0] } : {}}
+                                    transition={block.effectType === 'floating' ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
+                                    className={`rounded-full border-2 flex items-center justify-center shadow-2xl relative z-10 transition-all ${selectedBlockId === block.id ? 'scale-110' : ''}`}
+                                    style={{ 
+                                        width: `${block.markerSize}px`, height: `${block.markerSize}px`,
+                                        backgroundColor: block.markerBgColor || 'rgba(0,0,0,0.8)',
+                                        borderColor: selectedBlockId === block.id ? '#10b981' : 'white',
+                                        boxShadow: `0 0 20px ${block.color}66`
+                                    }}
+                                >
+                                    {block.markerUrl ? (
+                                        <img src={block.markerUrl} className="w-full h-full object-contain p-2" />
+                                    ) : (
+                                        <span style={{ fontSize: `${block.markerIconSize}px` }}>{block.icon}</span>
+                                    )}
+                                </motion.div>
+
+                                <div className="mt-2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 shadow-xl">
+                                    <p className="text-[8px] font-black text-white uppercase tracking-tighter">{block.name}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-              ))}
             </div>
-            
-            <div className="absolute top-6 left-6 glass-panel px-4 py-2 text-[10px] font-black uppercase text-emerald-400 pointer-events-none">
-              Editando: {MODULES.find(m => m.id === selectedModule)?.title} &bull; Bloque {selectedBlock}
+
+            {/* Marcador de Modo Edición flotante */}
+            <div className="fixed bottom-6 right-6 bg-emerald-500/10 backdrop-blur-xl border border-emerald-500/20 px-6 py-3 rounded-2xl flex items-center gap-4 z-50">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                    PUNTO SELECCIONADO: {mapConfig.blocks[selectedBlockId]?.name || 'Ninguno'}
+                </span>
             </div>
-          </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };

@@ -33,9 +33,9 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const TEMPLATES = {
   T01_NARRATIVE: 'T01: Texto + Siguiente (Narrativa)',
-  T02_QUIZ: 'T02: Quiz de Opción Múltiple',
-  T03_SWIPE: 'T03: Selección por Deslizamiento (Swipe)',
-  T04_FLIP: 'T04: Cartas Reversibles (Flashcards)',
+  T02_QUIZ_SELECT: 'T02: Quiz de Opción Múltiple',
+  T03_SWIPE_CARDS: 'T03: Selección por Deslizamiento (Swipe)',
+  T04_FLIP_CARDS: 'T04: Cartas Reversibles (Flashcards)',
   T05_SLIDER: 'T05: Selección por Rango (Slider)',
   T06_DRAG_MATCH: 'T06: Arrastrar y Soltar (Mortero)',
   T07_REWARD: 'T07: Medalla y Recompensa',
@@ -47,9 +47,9 @@ const TEMPLATES = {
   T13_MAGNETIC: 'T13: Magnetismo: Polaridad y Mezclas',
   T14_INTRO: 'T14: Intro: Narración Cinematográfica',
   T15_VIDEO: 'T15: Video Presentación (Vertical)',
-  T16_STORYTELLING: 'T16: Storytelling: Pasos de Narrativa',
+  T16_STORY_STEPS: 'T16: Storytelling: Pasos de Narrativa',
   T17_STATEMENT: 'T17: Frase Impacto (Efecto Typewriter)',
-  T18_PROMISE: 'T18: Hoja de Ruta / Promesa (Checklist)',
+  T18_PROMISE_CHECKLIST: 'T18: Hoja de Ruta / Promesa (Checklist)',
   T19_MISSION_ACTION: 'T19: Misión: Acción Real (Con Ayuda/Sugerencia)',
   T20_BOTANICAL_RECORD: 'T20: Registro Botánico: Ficha de 5 Rasgos',
   T21_QUICK_BURST: 'T21: Quiz Ráfaga: 3 Preguntas Rápidas (Una Pantalla)',
@@ -75,11 +75,12 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 const DEFAULT_NARRATIVE_DATA = {
   character: 'El Guardián',
-  text: 'Escribe aquí tu diálogo...',
+  text: '',
   accentColor: 'var(--color-guardian)',
   avatarImage: '/avatars/guardian.png',
   avatarEffect: 'none',
-  audioUrl: ''
+  audioUrl: '',
+  verticalOffset: 0
 };
 
 const DEFAULT_QUIZ_DATA = {
@@ -119,6 +120,7 @@ const DEFAULT_DRAG_DATA = {
 
 const DEFAULT_REWARD_DATA = {
   badgeName: '¡Medalla de Sabiduría!',
+  badgeId: '',
   badgeIcon: '🏆',
   message: 'Has completado el desafío con éxito.',
   accentColor: '#FBBF24',
@@ -266,13 +268,14 @@ const DEFAULT_INTRO_DATA = {
 
 const DEFAULT_VIDEO_DATA = {
   videoUrl: '',
-  phrase: 'Bienvenidos a esta presentación.',
+  phrase: '',
   accentColor: '#10b981',
   textColor: '#ffffff',
   fontSize: '24',
   videoMaxWidth: '320',
   borderColor: '#10b981',
-  autoContinue: false
+  autoContinue: false,
+  verticalOffset: 0
 };
 
 const DEFAULT_STORY_DATA = {
@@ -368,11 +371,21 @@ const LevelEditor = () => {
       id: generateId(),
       templateId: 'T01_NARRATIVE',
       conceptId: '', // Nuevo campo para el Nexo de Saberes
+      isEvaluated: false, // Por defecto las narrativas no se evalúan
       navigation: { type: 'sequential', jumpTarget: { lessonId: '', screenId: '' } },
       data: { ...DEFAULT_NARRATIVE_DATA }
     };
     setScreens([...screens, newScreen]);
     setSelectedScreenId(newScreen.id);
+  };
+
+  const handleTestInteractivity = () => {
+    localStorage.setItem('fito_editor_preview', JSON.stringify({
+      lessonId,
+      screens,
+      selectedScreenId
+    }));
+    window.open('/editor-preview', 'FitoPreview', 'width=400,height=800,resizable=yes');
   };
 
   const removeScreen = (id) => {
@@ -437,8 +450,21 @@ const LevelEditor = () => {
     else if (newTemplateId === 'T22_DECISION_GRID') defaultData = { ...DEFAULT_DECISION_GRID_DATA };
     else if (newTemplateId === 'T23_MANTRA') defaultData = { ...DEFAULT_MANTRA_DATA };
     
+    const evaluativeTemplates = [
+      'T02_QUIZ_SELECT', 
+      'T03_SWIPE_CARDS', 
+      'T06_DRAG_MATCH', 
+      'T09_HOTSPOTS', 
+      'T10_ORDERING', 
+      'T11_THERMO', 
+      'T12_SCRATCH', 
+      'T13_MAGNETIC', 
+      'T21_QUICK_BURST'
+    ];
+
     updateCurrentScreen({
       templateId: newTemplateId,
+      isEvaluated: evaluativeTemplates.includes(newTemplateId),
       data: defaultData
     });
   };
@@ -628,6 +654,28 @@ const LevelEditor = () => {
     }
   };
 
+  const toggleScreenLock = (id) => {
+    setScreens(prev => prev.map(s => s.id === id ? { ...s, isLocked: !s.isLocked } : s));
+  };
+
+  const toggleScreenVisibility = (id) => {
+    setScreens(prev => prev.map(s => s.id === id ? { ...s, isHidden: !s.isHidden } : s));
+  };
+
+  const duplicateScreen = (idx) => {
+    const screenToCopy = screens[idx];
+    const newScreen = {
+      ...JSON.parse(JSON.stringify(screenToCopy)), // Deep copy
+      id: Math.random().toString(36).substr(2, 9), // New unique ID
+      title: `${screenToCopy.title || 'Pantalla'} (Copia)`
+    };
+    
+    const newScreens = [...screens];
+    newScreens.splice(idx + 1, 0, newScreen); // Insert after the original
+    setScreens(newScreens);
+    setSelectedScreenId(newScreen.id);
+  };
+
   return (
     <div className="flex h-screen bg-dark text-main">
       
@@ -682,13 +730,16 @@ const LevelEditor = () => {
           {screens.map((screen, idx) => (
             <div 
               key={screen.id} 
-              className={`p-3 rounded-lg border cursor-pointer group transition-colors ${selectedScreenId === screen.id ? 'bg-emerald-900/40 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-dim hover:bg-white/10 hover:text-white'}`}
+              className={`p-3 rounded-lg border cursor-pointer group transition-all relative ${selectedScreenId === screen.id ? 'bg-emerald-900/40 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-dim hover:bg-white/10 hover:text-white'} ${screen.isHidden ? 'opacity-40 grayscale' : 'opacity-100'}`}
               onClick={() => setSelectedScreenId(screen.id)}
             >
               <div className="flex-1 truncate mr-2 flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] opacity-40">{idx + 1}</span>
-                  <span className="text-sm font-bold truncate">{screen.title || TEMPLATES[screen.templateId]?.split(' ')[0]}</span>
+                  <span className="text-sm font-bold truncate flex items-center gap-1">
+                    {screen.isLocked && <span className="text-amber-500 text-[10px]">🔒</span>}
+                    {screen.title || TEMPLATES[screen.templateId]?.split(' ')[0]}
+                  </span>
                 </div>
                 {screen.title && (
                   <span className="text-[9px] opacity-40 uppercase tracking-tighter">
@@ -697,24 +748,43 @@ const LevelEditor = () => {
                 )}
               </div>
               
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 mt-2 border-t border-white/5 pt-1">
                 {idx > 0 && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); moveScreen(idx, 'up'); }}
-                    className="hover:text-emerald-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="hover:text-emerald-400 p-1 transition-opacity text-[10px]"
                     title="Subir"
                   >▲</button>
                 )}
                 {idx < screens.length - 1 && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); moveScreen(idx, 'down'); }}
-                    className="hover:text-emerald-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="hover:text-emerald-400 p-1 transition-opacity text-[10px]"
                     title="Bajar"
                   >▼</button>
                 )}
+                
+                <button 
+                  onClick={(e) => { e.stopPropagation(); duplicateScreen(idx); }}
+                  className="p-1 hover:text-blue-400 transition-all text-xs"
+                  title="Duplicar Pantalla"
+                >📋</button>
+
+                <button 
+                  onClick={(e) => { e.stopPropagation(); toggleScreenVisibility(screen.id); }}
+                  className={`p-1 transition-all text-xs ${screen.isHidden ? 'text-white/20' : 'text-emerald-500'}`}
+                  title={screen.isHidden ? "Mostrar" : "Ocultar"}
+                >{screen.isHidden ? '👁️‍🗨️' : '👁️'}</button>
+
+                <button 
+                  onClick={(e) => { e.stopPropagation(); toggleScreenLock(screen.id); }}
+                  className={`p-1 transition-all text-xs ${screen.isLocked ? 'text-amber-500' : 'text-white/20'}`}
+                  title={screen.isLocked ? "Desbloquear" : "Bloquear"}
+                >{screen.isLocked ? '🔒' : '🔓'}</button>
+
                 <button 
                   onClick={(e) => { e.stopPropagation(); removeScreen(screen.id); }}
-                  className="text-red-500/30 hover:text-red-500 font-bold px-1 ml-1"
+                  className="text-red-500/30 hover:text-red-500 font-bold px-1 ml-1 text-sm"
                   title="Eliminar Pantalla"
                 >&times;</button>
               </div>
@@ -739,6 +809,19 @@ const LevelEditor = () => {
 
       {/* Editor Central (Formulario) */}
       <div className="flex-1 border-r border-white/10 p-8 overflow-y-auto relative">
+        {currentScreen?.isLocked && (
+            <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+                <div className="text-6xl mb-4">🔒</div>
+                <h3 className="text-2xl font-black uppercase tracking-tighter text-amber-500 mb-2">Pantalla Bloqueada</h3>
+                <p className="text-dim max-w-xs text-sm">Haz clic en el candado de la lista lateral para poder modificar el contenido de esta pantalla.</p>
+                <button 
+                    onClick={() => toggleScreenLock(currentScreen.id)}
+                    className="mt-6 px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-full font-bold text-xs uppercase tracking-widest transition-all"
+                >
+                    Desbloquear Ahora
+                </button>
+            </div>
+        )}
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold mb-8 uppercase tracking-widest">Editando Pantalla {currentScreenIndex + 1}</h2>
           
@@ -780,6 +863,23 @@ const LevelEditor = () => {
                   />
                   <p className="text-[9px] text-white/30 italic mt-1">Usa el mismo ID para repetir este concepto en otras lecciones.</p>
                 </label>
+
+                {/* NUEVO: Toggle de Evaluación */}
+                <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-emerald-400 block">Evaluación & Maestría</span>
+                    <p className="text-[9px] text-emerald-400/50">¿Esta pantalla afecta el progreso del alumno?</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={currentScreen.isEvaluated || false}
+                      onChange={(e) => updateCurrentScreen({ isEvaluated: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white/20 after:border-white/10 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white"></div>
+                  </label>
+                </div>
               </div>
 
               <hr className="border-white/5 my-8" />
@@ -1394,23 +1494,32 @@ const LevelEditor = () => {
                   />
                 </label>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <label className="block">
-                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Ancho Máximo Video (px)</span>
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Ancho Máx (px)</span>
                     <input 
                       type="number" 
                       value={currentScreen.data.videoMaxWidth || 320} 
                       onChange={(e) => handleChangeData('videoMaxWidth', e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main text-xs"
                     />
                   </label>
                   <label className="block">
-                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Tamaño de Fuente (px)</span>
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Fuente (px)</span>
                     <input 
                       type="number" 
                       value={currentScreen.data.fontSize || 24} 
                       onChange={(e) => handleChangeData('fontSize', e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main"
+                      className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-main text-xs"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-dim text-xs uppercase font-bold mb-2 block">Posición Y ({currentScreen.data.verticalOffset || 0})</span>
+                    <input 
+                      type="range" min="-300" max="300" step="10"
+                      value={currentScreen.data.verticalOffset || 0} 
+                      onChange={(e) => handleChangeData('verticalOffset', parseInt(e.target.value))}
+                      className="w-full accent-blue-500"
                     />
                   </label>
                 </div>
@@ -2196,6 +2305,64 @@ const LevelEditor = () => {
               </div>
             </div>
 
+            {/* SECCIÓN DE IMPACTO ECONÓMICO (RECOMPENSAS Y COSTOS) */}
+            <div className="pt-8 mt-12 border-t border-white/10 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-6 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                <h3 className="text-lg font-black uppercase tracking-tighter text-white">Impacto Económico</h3>
+              </div>
+              <p className="text-[10px] text-white/30 uppercase tracking-widest leading-relaxed">
+                Configura premios o costos específicos para esta pantalla. Si los dejas en 0, se usarán los valores automáticos globales.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <label className="block">
+                    <span className="text-emerald-400 text-[9px] uppercase font-black mb-2 block">💧 Gotas de Agua</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.economy?.rewardWater || 0} 
+                      onChange={(e) => handleChangeData('economy', { ...currentScreen.data.economy, rewardWater: parseInt(e.target.value) })}
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-white font-mono text-xs outline-none focus:border-emerald-500"
+                    />
+                  </label>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <label className="block">
+                    <span className="text-amber-400 text-[9px] uppercase font-black mb-2 block">🔋 Energía (ATP)</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.economy?.rewardEnergy || 0} 
+                      onChange={(e) => handleChangeData('economy', { ...currentScreen.data.economy, rewardEnergy: parseInt(e.target.value) })}
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-white font-mono text-xs outline-none focus:border-amber-500"
+                    />
+                  </label>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <label className="block">
+                    <span className="text-purple-400 text-[9px] uppercase font-black mb-2 block">🪱 Compost (Abono)</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.economy?.rewardCompost || 0} 
+                      onChange={(e) => handleChangeData('economy', { ...currentScreen.data.economy, rewardCompost: parseInt(e.target.value) })}
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-white font-mono text-xs outline-none focus:border-purple-500"
+                    />
+                  </label>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                  <label className="block">
+                    <span className="text-yellow-400 text-[9px] uppercase font-black mb-2 block">☀️ Soles (Fotones)</span>
+                    <input 
+                      type="number" 
+                      value={currentScreen.data.economy?.rewardSuns || 0} 
+                      onChange={(e) => handleChangeData('economy', { ...currentScreen.data.economy, rewardSuns: parseInt(e.target.value) })}
+                      className="w-full bg-black/40 border border-white/10 p-2 rounded-lg text-white font-mono text-xs outline-none focus:border-yellow-500"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
             {/* SECCIÓN DE DECORACIÓN LOTTIE */}
             <div className="pt-8 mt-12 border-t border-white/10 space-y-6">
               <div className="flex items-center gap-3">
@@ -2248,7 +2415,7 @@ const LevelEditor = () => {
                       <label className="block">
                         <span className="text-dim text-[10px] uppercase font-black mb-2 block">Posición Y ({currentScreen.lottie.config?.y || 50}%)</span>
                         <input 
-                          type="range" min="0" max="100" step="1"
+                          type="range" min="0" max="130" step="1"
                           value={currentScreen.lottie.config?.y || 50}
                           onChange={(e) => {
                             const config = currentScreen.lottie.config || {};
@@ -2345,7 +2512,7 @@ const LevelEditor = () => {
       {/* Simulador de Móvil (Live Preview) */}
       <div className="w-96 bg-[#05070a] flex flex-col items-center justify-center relative p-8 border-l border-white/5">
         <button 
-          onClick={() => setIsTestMode(true)}
+          onClick={handleTestInteractivity}
           className="mb-8 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center gap-2 group"
         >
           <span className="text-sm group-hover:scale-125 transition-transform">▶️</span>
@@ -2381,27 +2548,6 @@ const LevelEditor = () => {
           </div>
         </div>
       </div>
-
-      {/* MODAL DE VISTA PREVIA INTERACTIVA */}
-      <AnimatePresence>
-        {isTestMode && currentScreen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
-          >
-            <div className="w-full h-full max-w-md bg-black relative shadow-2xl border-x border-white/10">
-              <LessonEngine 
-                lesson={{ id: lessonId, screens }} 
-                initialScreenIndex={screens.findIndex(s => s.id === selectedScreenId)}
-                onExit={() => setIsTestMode(false)}
-                user={{ uid: 'admin-test' }} // Usuario ficticio para pruebas
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

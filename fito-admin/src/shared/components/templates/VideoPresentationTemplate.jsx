@@ -4,13 +4,14 @@ import { motion } from 'framer-motion';
 const VideoPresentationTemplate = ({ data, onNext, isEditMode = false }) => {
   const {
     videoUrl = '',
-    phrase = 'Bienvenidos a esta presentación.',
+    phrase = '', 
     accentColor = '#10b981',
     textColor = '#ffffff',
     fontSize = '24',
-    videoMaxWidth = '320', // Default para vertical
+    videoMaxWidth = '320',
     borderColor = '#10b981',
-    autoContinue = false
+    autoContinue = false,
+    verticalOffset = 0
   } = data;
 
   const videoRef = useRef(null);
@@ -48,7 +49,8 @@ const VideoPresentationTemplate = ({ data, onNext, isEditMode = false }) => {
       {/* Contenedor del Video */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+        animate={{ opacity: 1, scale: 1, y: verticalOffset }}
+        transition={{ type: 'spring', damping: 20 }}
         className="relative z-10 w-full mb-8 flex justify-center"
       >
         <div 
@@ -94,23 +96,25 @@ const VideoPresentationTemplate = ({ data, onNext, isEditMode = false }) => {
       </motion.div>
 
       {/* Caja de Frase / Subtítulo */}
-      <motion.div 
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass-panel p-8 max-w-lg w-full text-center relative z-20 neon-border-green"
-        style={{ borderColor: accentColor }}
-      >
-        <p 
-          className="leading-relaxed font-medium transition-all duration-500"
-          style={{ 
-            fontSize: `${fontSize}px`,
-            color: textColor
-          }}
+      {phrase?.trim() && (
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="glass-panel p-8 max-w-lg w-full text-center relative z-20 neon-border-green"
+          style={{ borderColor: accentColor }}
         >
-          {phrase}
-        </p>
-      </motion.div>
+          <p 
+            className="leading-relaxed font-medium transition-all duration-500"
+            style={{ 
+              fontSize: `${fontSize}px`,
+              color: textColor
+            }}
+          >
+            {phrase}
+          </p>
+        </motion.div>
+      )}
 
       {/* Botón Siguiente (Si no es auto-continue) */}
       {!autoContinue && (

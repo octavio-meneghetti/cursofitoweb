@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
  * JournalTemplate (T08): Diario de Reflexión / Escritura Guiada
  * Versión optimizada: contador en una línea y campos adaptables.
  */
-const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
+const JournalTemplate = ({ data, onChange, isEditMode, onNext, onResult, conceptId }) => {
   const {
     title = 'Cuaderno de Campo',
     subtitle = 'Registra tus observaciones',
@@ -20,7 +20,7 @@ const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
     placeholderSize = 16,
     gapBetweenQuestions = 48,
     maxChars = 120
-  } = data;
+  } = data || {};
 
   const handleChange = (field, value) => {
     if (onChange) onChange(field, value);
@@ -134,6 +134,26 @@ const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
     }
   };
 
+  const handleSave = () => {
+    if (onResult && Object.keys(customInputs).length > 0) {
+      onResult({
+        success: true,
+        conceptId: conceptId || 'journal_entry',
+        metadata: {
+          isJournalEntry: true,
+          journalData: {
+            title,
+            entries: questions.map(q => ({
+              question: q.label,
+              answer: customInputs[q.id] || ''
+            }))
+          }
+        }
+      });
+    }
+    if (onNext) onNext();
+  };
+
   return (
     <div className="w-full h-full flex flex-col p-8 bg-[#05070a] relative overflow-y-auto hide-scrollbar">
       {/* Cabecera */}
@@ -158,7 +178,7 @@ const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
 
       {/* Listado de Preguntas */}
       <div 
-        className="flex-1 pb-32"
+        className="w-full"
         style={{ display: 'flex', flexDirection: 'column', gap: `${gapBetweenQuestions}px` }}
       >
         {questions.map((q, idx) => (
@@ -167,7 +187,7 @@ const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="w-full"
+            className="w-full relative z-10"
           >
             <h3 
                 className="text-emerald-50/90 font-bold mb-4 flex items-center gap-4"
@@ -201,17 +221,18 @@ const JournalTemplate = ({ data, onChange, isEditMode, onNext }) => {
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-8"
+        className="w-full max-w-md mx-auto mt-12 pb-12 relative z-50"
       >
         <button 
-          onClick={onNext}
-          className="w-full py-5 rounded-full bg-white text-black font-black uppercase tracking-[0.3em] text-xs shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:scale-105 transition-all active:scale-95"
+          onClick={handleSave}
+          className="w-full py-5 rounded-full bg-white text-black font-black uppercase tracking-[0.3em] text-xs shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:scale-105 transition-all active:scale-95 relative overflow-hidden"
         >
           {buttonText}
         </button>
       </motion.div>
     </div>
   );
+
 };
 
 export default JournalTemplate;

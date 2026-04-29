@@ -29,13 +29,38 @@ const QuickBurstQuizTemplate = ({ data, onNext, onResult, conceptId, isEditMode 
       } else {
         setTimeout(() => {
           if (onResult) {
-            onResult({ success: true, conceptId, metadata: { answers: newAnswers } });
+            onResult({ 
+              success: true, 
+              conceptId: conceptId || 'quick_burst', 
+              metadata: { 
+                isJournalEntry: true,
+                journalData: {
+                  title: title || 'Quiz Ráfaga',
+                  entries: questions.map((q, i) => ({
+                    question: q.text,
+                    answer: newAnswers[i] !== undefined ? q.options[newAnswers[i]] : 'Sin responder'
+                  }))
+                }
+              } 
+            });
           }
           onNext();
         }, 800);
       }
     } else {
       setErrorIndex(qIndex);
+      // NUEVO: Reportamos el error inmediatamente al sistema de maestría/analíticas
+      if (onResult) {
+        onResult({
+          success: false,
+          conceptId: conceptId || 'quick_burst',
+          metadata: {
+            question: questions[qIndex].text,
+            selectedAnswer: questions[qIndex].options[optIndex],
+            correctAnswer: questions[qIndex].options[questions[qIndex].correctIndex]
+          }
+        });
+      }
       setTimeout(() => setErrorIndex(null), 500);
     }
   };

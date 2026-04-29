@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 
 /**
  * Servicio para gestionar el Nexo de Saberes (Repetición Espaciada)
@@ -48,7 +48,7 @@ export const masteryService = {
 
         const newScore = Math.max(0, Math.min(100, (data.masteryScore || 0) + (success ? 10 : -15)));
 
-        await updateDoc(masteryRef, {
+        await setDoc(masteryRef, {
           successCount: increment(success ? 1 : 0),
           failCount: increment(success ? 0 : 1),
           interval: newInterval,
@@ -57,7 +57,7 @@ export const masteryService = {
           masteryScore: newScore,
           // Limitamos el historial para no saturar el doc
           history: [...(data.history || []).slice(-9), { success, timestamp: Date.now(), ...metadata }]
-        });
+        }, { merge: true });
       }
 
       // También guardamos un log global de errores para analíticas del docente

@@ -4,9 +4,10 @@ import { motion } from 'framer-motion';
 const NarrativeTemplate = ({ data, onNext }) => {
   const { 
     character = 'El Guardián', 
-    text = 'Escribe aquí tu diálogo...', 
+    text = '', 
     accentColor = '#10b981',
-    avatarImage = '/guardian.png'
+    avatarImage = '/guardian.png',
+    verticalOffset = 0
   } = data;
 
   return (
@@ -23,7 +24,7 @@ const NarrativeTemplate = ({ data, onNext }) => {
         {/* Character/Artwork Image */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={{ opacity: 1, y: verticalOffset }}
           transition={{ duration: 1, ease: "easeOut" }}
           className="w-full aspect-square mb-8 overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
         >
@@ -35,23 +36,25 @@ const NarrativeTemplate = ({ data, onNext }) => {
         </motion.div>
 
         {/* Dialogue Box (Glass Panel) */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="glass-panel p-8 w-full text-center relative z-20 neon-border-green"
-          style={{ 
-            borderColor: accentColor, 
-            boxShadow: `0 0 20px ${accentColor}33` 
-          }}
-        >
-          <h2 className="text-dim text-sm uppercase tracking-widest mb-4 font-black" style={{ color: accentColor }}>
-            {character}
-          </h2>
-          <p className="text-xl md:text-2xl leading-relaxed font-medium text-white drop-shadow-sm">
-            {text}
-          </p>
-        </motion.div>
+        {text?.trim() && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="glass-panel p-8 w-full text-center relative z-20 neon-border-green"
+            style={{ 
+              borderColor: accentColor, 
+              boxShadow: `0 0 20px ${accentColor}33` 
+            }}
+          >
+            <h2 className="text-dim text-sm uppercase tracking-widest mb-4 font-black" style={{ color: accentColor }}>
+              {character}
+            </h2>
+            <p className="text-xl md:text-2xl leading-relaxed font-medium text-white drop-shadow-sm">
+              {text}
+            </p>
+          </motion.div>
+        )}
 
         {/* Continue Button */}
         <motion.button

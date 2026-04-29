@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'framer-motion';
 import '@shared/theme/designSystem.css';
 
 const CourseManager = () => {
@@ -11,6 +12,9 @@ const CourseManager = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBlock, setSelectedBlock] = useState(1);
   const [moduleConfig, setModuleConfig] = useState(null);
+  const [courseRewards, setCourseRewards] = useState({ blocks: {}, weeks: {}, days: {} });
+  const [economyModal, setEconomyModal] = useState(null); // { type: 'block' | 'week', id: number }
+  const [savingRewards, setSavingRewards] = useState(false);
 
   const courseNames = {
     'auto': 'Autosustentabilidad',
@@ -53,8 +57,20 @@ const CourseManager = () => {
       }
     };
 
+    const fetchCourseRewards = async () => {
+      try {
+        const rewardsSnap = await getDoc(doc(db, 'config', `rewards_${courseId}`));
+        if (rewardsSnap.exists()) {
+          setCourseRewards(rewardsSnap.data());
+        }
+      } catch (err) {
+        console.error("Error cargando premios:", err);
+      }
+    };
+
     fetchLessons();
     fetchModuleConfig();
+    fetchCourseRewards();
   }, [courseId]);
   
   const handleDeleteLesson = async (lessonId, lessonTitle) => {
@@ -87,6 +103,55 @@ const CourseManager = () => {
       console.error("Error al eliminar bloque:", err);
       alert("Hubo un error al intentar eliminar el bloque.");
     }
+  };
+
+  const handleSaveRewards = async (type, id, data) => {
+    setSavingRewards(true);
+    try {
+      const newRewards = { ...courseRewards };
+      if (!newRewards[type + 's']) newRewards[type + 's'] = {};
+      newRewards[type + 's'][id] = data;
+      
+      await setDoc(doc(db, 'config', `rewards_${courseId}`), newRewards);
+      setCourseRewards(newRewards);
+      setEconomyModal(null);
+    } catch (err) {
+      console.error("Error guardando premios:", err);
+      alert("Error al guardar premios.");
+    }
+    setSavingRewards(false);
+  };
+
+  const EconomyModal = ({ type, id, currentData, onClose, onSave }) => {
+    const [data, setData] = useState(currentData || { water: 0, energy: 0, compost: 0, suns: 0 });
+    
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/60">
+        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-[#0c0c12] border border-white/10 p-8 rounded-[2rem] w-full max-w-md shadow-2xl">
+          <h2 className="text-xl font-black uppercase tracking-tighter mb-2 text-white">Premios: {type === 'block' ? 'Bloque' : 'Semana'} {id}</h2>
+          <p className="text-[10px] text-dim uppercase tracking-widest mb-8">Estos recursos se sumarán automáticamente al terminar</p>
+          
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            {['water', 'energy', 'compost', 'suns'].map(field => (
+              <div key={field} className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                <label className="text-[9px] uppercase font-black text-white/40 block mb-2">{field === 'water' ? '💧 Agua' : field === 'energy' ? '🔋 Energía' : field === 'compost' ? '🪱 Compost' : '☀️ Soles'}</label>
+                <input 
+                  type="number" 
+                  value={data[field]} 
+                  onChange={(e) => setData({...data, [field]: parseInt(e.target.value)})}
+                  className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-white font-mono text-xs outline-none focus:border-emerald-500"
+                />
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-3 bg-white/5 text-white font-bold rounded-xl text-xs uppercase tracking-widest">Cancelar</button>
+            <button onClick={() => onSave(type, id, data)} className="flex-1 py-3 bg-emerald-500 text-black font-black rounded-xl text-xs uppercase tracking-widest">Guardar</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
   };
 
   return (
@@ -125,6 +190,16 @@ const CourseManager = () => {
             <span className="text-sm truncate max-w-[150px]">
               {moduleConfig?.blocks?.[i+1]?.name || 'Sin Nombre'}
             </span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setEconomyModal({ type: 'block', id: i+1 });
+              }}
+              className={`mt-2 p-1.5 rounded-lg border transition-all ${selectedBlock === i+1 ? 'bg-black/20 border-black/10 text-black hover:bg-black/40' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
+              title="Configurar Premios de Bloque"
+            >
+              🔋
+            </button>
           </button>
         ))}
       </div>
@@ -157,6 +232,13 @@ const CourseManager = () => {
                 <h2 className="text-emerald-400 font-bold uppercase tracking-widest border-b border-white/10 pb-2 flex items-center gap-3">
                   <span className="bg-emerald-500/10 px-2 py-1 rounded text-[10px]">SEMANA {week}</span>
                   <span>{moduleConfig?.blocks?.[selectedBlock]?.weeks?.[week] || 'Sin Nombre'}</span>
+                  <button 
+                    onClick={() => setEconomyModal({ type: 'week', id: week })}
+                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all ml-auto"
+                    title="Configurar Premios de Semana"
+                  >
+                    💧
+                  </button>
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {weekLessons.map((lesson) => (
@@ -206,6 +288,18 @@ const CourseManager = () => {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {economyModal && (
+          <EconomyModal 
+            type={economyModal.type}
+            id={economyModal.id}
+            currentData={courseRewards?.[economyModal.type + 's']?.[economyModal.id]}
+            onClose={() => setEconomyModal(null)}
+            onSave={handleSaveRewards}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

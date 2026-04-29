@@ -10,7 +10,7 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, './src/shared'),
       '@shared-lib': path.resolve(__dirname, '../shared'),
     },
-    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion'],
+    dedupe: ['firebase', 'react', 'react-dom', 'framer-motion', 'lottie-react'],
   },
   server: {
     fs: {
